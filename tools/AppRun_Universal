@@ -1,0 +1,170 @@
+#!/bin/sh
+#
+# Universal AppRun for AppImage
+#
+# By Mauricio Ferrari (m10ferrari1200@gmail.com)
+#
+################################################
+
+APPDIR="$(cd "${0%/*}" && echo $PWD)"
+
+#_______________________________________________
+
+# PROGRAM
+# - $APPDIR/usr/bin/python3 $APPDIR/usr/bin/scriptpython
+# - $APPDIR/usr/bin/bash $APPDIR/usr/bin/scriptshell
+# - $APPDIR/usr/bin/programbinary
+
+# LD_LINUX
+# - $APPDIR/usr/lib/ld-linux-x86-64.so.2
+
+PROGRAM=
+LD_LINUX=
+
+app_libs=
+gtk_version=  # 2, 3, 4
+qt_version=   # 4, 5, 6
+
+libunionpreload=  # "$APPDIR/libunionpreload.so"
+
+enable_debug=0  # 0 (false) or 1 (true)
+
+#_______________________________________________
+
+export UNION_PRELOAD="$APPDIR"
+
+test -z "$libunionpreload" || export LD_PRELOAD="$libunionpreload"
+
+
+function _apprun_debug
+{
+printf "
+APPDIR   = $APPDIR
+PROGRAM  = $PROGRAM
+LD_LINUX = $LD_LINUX
+
+UNION_PRELOAD        = $UNION_PRELOAD
+LD_PRELOAD           = $LD_PRELOAD
+XDG_DATA_DIRS        = $XDG_DATA_DIRS
+XDG_CONFIG_DIRS      = $XDG_CONFIG_DIRS
+TEXTDOMAINDIR        = $TEXTDOMAINDIR
+LOCPATH              = $LOCPATH
+GSETTINGS_SCHEMA_DIR = $GSETTINGS_SCHEMA_DIR
+GIMP2_LOCALEDIR      = $GIMP2_LOCALEDIR
+GIMP3_LOCALEDIR      = $GIMP3_LOCALEDIR
+GIMP2_DATADIR        = $GIMP2_DATADIR
+GIMP3_DATADIR        = $GIMP3_DATADIR
+GIMP2_SYSCONFDIR     = $GIMP2_SYSCONFDIR
+GIMP3_SYSCONFDIR     = $GIMP3_SYSCONFDIR
+GIMP2_PLUGINDIR      = $GIMP3_PLUGINDIR
+GIMP3_PLUGINDIR      = $GIMP3_PLUGINDIR
+REQUESTS_CA_BUNDLE   = $REQUESTS_CA_BUNDLE
+GCONV_PATH           = $GCONV_PATH
+BABL_PATH            = $BABL_PATH
+GEGL_PATH            = $GEGL_PATH
+TCL_LIBRARY          = $TCL_LIBRARY
+TK_LIBRARY           = $TK_LIBRARY
+GIO_EXTRA_MODULES    = $GIO_EXTRA_MODULES
+GI_TYPELIB_PATH      = $GI_TYPELIB_PATH
+JAVA_HOME            = $JAVA_HOME
+PYTHONHOME           = $PYTHONHOME
+GEM_PATH             = $GEM_PATH
+
+GTK_PATH               = $GTK_PATH
+GTK_IM_MODULE_FILE     = $GTK_IM_MODULE_FILE
+GDK_PIXBUF_MODULEDIR   = $GDK_PIXBUF_MODULEDIR
+GDK_PIXBUF_MODULE_FILE = $GDK_PIXBUF_MODULE_FILE
+
+GST_PLUGIN_PATH        = $GST_PLUGIN_PATH
+GST_PLUGIN_SYSTEM_PATH = $GST_PLUGIN_SYSTEM_PATH
+GST_PLUGIN_SCANNER     = $GST_PLUGIN_SCANNER
+
+PATH = $PATH
+
+LIBRARY_PATH = $LIBRARY_PATH
+
+QT_PLUGIN_PATH = $QT_PLUGIN_PATH
+
+PYTHONPATH = $PYTHONPATH
+
+PERL5LIB = $PERL5LIB
+
+RUBYLIB  = $RUBYLIB
+" > __debug_apprun
+}
+
+
+shopt -s nullglob extglob
+
+export XDG_DATA_DIRS="$APPDIR/usr/share:/usr/share"
+export XDG_CONFIG_DIRS="$APPDIR/etc/xdg:/etc/xdg"
+
+export TEXTDOMAINDIR="$APPDIR/usr/share/locale"
+export LOCPATH="$APPDIR/usr/share/locale"
+
+export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas/"
+
+export GIMP2_LOCALEDIR="$APPDIR/usr/share/locale"
+export GIMP3_LOCALEDIR="$APPDIR/usr/share/locale"
+
+export GIMP2_DATADIR="$(echo $APPDIR*/usr/share/gimp/*)"
+export GIMP3_DATADIR="$(echo $APPDIR*/usr/share/gimp/*)"
+
+export GIMP2_SYSCONFDIR="$(echo $APPDIR*/etc/gimp/*)"
+export GIMP3_SYSCONFDIR="$(echo $APPDIR*/etc/gimp/*)"
+
+export GIMP2_PLUGINDIR="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}gimp/*); echo "${i[0]}")"
+export GIMP3_PLUGINDIR="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}gimp/*); echo "${i[0]}")"
+
+export REQUESTS_CA_BUNDLE=$(i=(/etc/{ssl,pki}/certs/ca-{certificates,bundle}*crt); echo "${i[0]}")
+
+export GCONV_PATH="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}gconv); echo "${i[0]}")"
+
+export BABL_PATH="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}babl-*); echo "${i[0]}")"
+
+export GEGL_PATH="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}gegl-*); echo "${i[0]}")"
+
+export TCL_LIBRARY="$(i=($APPDIR*/{{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/},usr/share/}tcl8.6); echo "${i[0]}")"
+
+export TK_LIBRARY="$(i=($APPDIR*/{{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/},usr/share/}tk8.6); echo "${i[0]}")"
+
+export GIO_EXTRA_MODULES="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}gio/modules); echo "${i[0]}")"
+
+export GI_TYPELIB_PATH="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}girepository-1.0); echo "${i[0]}")"
+
+export JAVA_HOME="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}{jvm/java*,jdk*}); echo "${i[0]}")"
+
+export GTK_IM_MODULE_FILE="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}gtk-${gtk_version:-*}.0/*/immodules.cache); echo "${i[0]}")"
+export GDK_PIXBUF_MODULEDIR="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}gdk-pixbuf-2.0/2.10.0/loaders); echo "${i[0]}")"
+export GDK_PIXBUF_MODULE_FILE="${GDK_PIXBUF_MODULEDIR:+$GDK_PIXBUF_MODULEDIR.cache}"
+
+export GST_PLUGIN_PATH="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}gstreamer*1.0); echo "${i[0]}")"
+export GST_PLUGIN_SYSTEM_PATH="${GST_PLUGIN_PATH}"
+export GST_PLUGIN_SCANNER="${GST_PLUGIN_PATH:+$GST_PLUGIN_PATH/gst-plugin-scanner}"
+
+IFS_BAK=$IFS
+IFS=:
+
+export GTK_PATH="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}gtk-${gtk_version:-*}.0); echo "${i[*]}")"
+export PATH="$(i=($APPDIR*/{{,usr/}{,s}bin,usr/{libexec,{,share/}games}}); echo "${i[*]}")"
+
+export LIBRARY_PATH="$(dirs=("${app_libs:-$APPDIR/app/libs}/"{,*/}); echo "${dirs[*]%/}")"
+export LIBRARY_PATH=${LIBRARY_PATH}:"$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}{,*/}); echo "${i[*]}")"
+
+export QT_PLUGIN_PATH="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}qt${qt_version:-*}/{,plugins/{,*/}}); echo "${i[*]}")"
+
+export PYTHONPATH="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}python3.*/{,site-packages/*/,*/}); echo "${i[*]}")"
+export PYTHONHOME="$APPDIR/usr"
+
+export PERL5LIB="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}perl{,5,-base}/{,*5.*/,*/}{,*/{,*/{,*/{,*/}}}}); echo "${i[*]}")"
+
+export RUBYLIB="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}ruby/{,*/}); echo "${i[*]}")"
+export GEM_PATH="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}ruby/gems); echo "${i[0]}")"
+
+IFS=$IFS_BAK
+
+shopt -u nullglob extglob
+
+test $enable_debug -eq 0 || _apprun_debug
+
+test -z "$PROGRAM" || exec "${LD_LINUX:-$APPDIR/lib64/ld-linux-x86-64.so.2}" --inhibit-cache --library-path "${LIBRARY_PATH}" $PROGRAM "$@"

@@ -1,0 +1,63 @@
+#!/bin/sh
+#
+# Universal AppRun for AppImage
+#
+# By Mauricio Ferrari (m10ferrari1200@gmail.com)
+#
+################################################
+
+APPDIR="$(cd "${0%/*}" && echo $PWD)"
+
+#_______________________________________________
+
+# PROGRAM
+# - /usr/bin/program
+
+# LD_LINUX
+# - $APPDIR/usr/lib/ld-linux-x86-64.so.2
+
+PROGRAM=
+LD_LINUX=
+
+#_______________________________________________
+
+IFS_BAK=$IFS
+IFS=:
+
+export LIBRARY_PATH="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}{,*/}); echo "${i[*]}")"
+
+IFS=$IFS_BAK
+
+BWRAP_OPTIONS="--unshare-user --bind $APPDIR / \
+    --share-net \
+    --dev-bind /dev /dev \
+    --ro-bind /sys /sys \
+    --proc /proc \
+    --ro-bind-try /etc/resolv.conf /etc/resolv.conf \
+    --ro-bind-try /etc/hosts /etc/hosts \
+    --ro-bind-try /etc/nsswitch.conf /etc/nsswitch.conf \
+    --ro-bind-try /etc/passwd /etc/passwd \
+    --ro-bind-try /etc/group /etc/group \
+    --ro-bind-try /etc/machine-id /etc/machine-id \
+    --ro-bind-try /etc/asound.conf /etc/asound.conf \
+    --ro-bind-try /etc/localtime /etc/localtime \
+    --ro-bind-try /lib/firmware /lib/firmware \
+    --bind-try /home /home \
+    --bind-try /media /media \
+    --bind-try /mnt /mnt \
+    --bind-try /opt /opt \
+    --bind-try /tmp /tmp \
+    --bind-try /run/media /run/media \
+    --bind-try /etc/fonts /etc/fonts \
+    --bind-try /usr/lib/locale /usr/lib/locale \
+    --bind-try /usr/share/font-config /usr/share/font-config \
+    --bind-try /usr/share/fonts /usr/share/fonts \
+    --bind-try /usr/share/themes /usr/share/themes \
+    --bind-try /var /var \
+    --setenv BWROOTFS \"$APPDIR\"
+"
+
+test -z "$PROGRAM" || exec "${LD_LINUX:-$APPDIR/lib64/ld-linux-x86-64.so.2}" \
+    --inhibit-cache \
+    --library-path "${LIBRARY_PATH}" \
+    "/usr/bin/bwrap" $BWRAP_OPTIONS "$PROGRAM" "$@"
