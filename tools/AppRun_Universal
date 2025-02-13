@@ -21,6 +21,12 @@ APPDIR="$(cd "${0%/*}" && echo $PWD)"
 PROGRAM=
 LD_LINUX=
 
+AUTO_INTEGRATION=0
+AUTOSTART=0
+AUTOSTART_PARM=
+DESKTOP=
+ICON=
+
 app_libs=
 gtk_version=  # 2, 3, 4
 qt_version=   # 4, 5, 6
@@ -30,6 +36,44 @@ libunionpreload=  # "$APPDIR/libunionpreload.so"
 enable_debug=0  # 0 (false) or 1 (true)
 
 #_______________________________________________
+
+
+test $AUTO_INTEGRATION -eq 0 || {
+    local_desktop=~/.local/share/applications
+    local_icon=~/.local/share/pixmaps
+    local_autostart=~/.config/autostart
+
+    test -d "$local_desktop" || mkdir -p "$local_desktop"
+    test -d "$local_icon" || mkdir -p "$local_icon"
+
+    test -f "$local_desktop/$DESKTOP" || cp "$APPDIR/$DESKTOP" "$local_desktop"
+    test -f "$local_icon/$ICON" || cp "$APPDIR/$ICON" "$local_icon"
+
+    test $AUTOSTART -eq 0 || {
+        test -d "$local_autostart" || mkdir -p "$local_autostart"
+        test -f "$local_autostart/$DESKTOP" || cp "$APPDIR/$DESKTOP" "$local_autostart"
+    }
+
+    grep -q "$APPIMAGE" "$local_desktop/$DESKTOP" || {
+
+        parm="$( grep -o " .*"  <( grep -m1 "^Exec=.*" "$APPDIR/$DESKTOP" ))"
+
+        sed -i "s|Exec=.*|Exec=${APPIMAGE}${parm}|" "$local_desktop/$DESKTOP"
+        sed -i "s|Icon=.*|Icon=${ICON%[.]*}|" "$local_desktop/$DESKTOP"
+
+        test $AUTOSTART -eq 0 || {
+            autoparm=${AUTOSTART_PARM:+" $AUTOSTART_PARM"}
+            sed -i "s|Exec=.*|Exec=${APPIMAGE}${autoparm}${parm}|" "$local_autostart/$DESKTOP"
+            sed -i "s|Icon=.*|Icon=${ICON%[.]*}|" "$local_autostart/$DESKTOP"
+        }
+
+        /usr/bin/update-desktop-database -q 2>&1 >&-
+
+        test -e usr/share/icons/hicolor/icon-theme.cache && \
+            test -x /usr/bin/gtk-update-icon-cache && \
+                /usr/bin/gtk-update-icon-cache ~/.local/share/pixmaps/ 2>&1 >&-
+    }
+}
 
 export UNION_PRELOAD="$APPDIR"
 
