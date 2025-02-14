@@ -1,0 +1,736 @@
+#!/bin/bash
+#
+# ArchAppImage - Generate AppImage using rootfs, based ArchImage
+#
+# require bash 4 or higher
+#
+# By Mauricio Ferrari
+#
+###############################################################################
+
+CWD="$PWD"
+
+set -e
+
+#______________________________________________________________________________
+
+package_name=
+binary_name=   # optional
+dependencies=  # optional
+
+use_font="noto-fonts"
+# use_font="gnu-free-fonts"
+
+use_lib_browser_launcher=0  # 0 (false) or 1 (true)
+use_lib_audio_keywords=0    # 0 (false) or 1 (true)
+
+level_search_deps=1      # auto detect dependencies 1 - 2 - 3 ...
+level_search_add_deps=1  # detect add dependencies 1 - 2 - 3 ...
+
+mode="default"  # default - conteiner
+
+use_apprun_bwrap=0  # mode conteiner: 0 (false) - 1 (true) - 2 (proot)
+
+enable_auto_integration=0            # 0 (false) or 1 (true)
+enable_auto_integration_autostart=0  # 0 (false) or 1 (true)
+autostart_parms=  # optional
+
+custom_conteiner_name= #"$package_name" # optional
+
+enable_multilib=0     # 0 (false) or 1 (true)
+enable_chaoticaur=0   # 0 (false) or 1 (true)
+enable_archlinuxcn=0  # 0 (false) or 1 (true)
+enable_build_aur=0    # 0 (false) or 1 (true)
+
+use_desktop_file=  # optional - "$CWD/usr/share/applications/desktopfile.desktop"
+use_icon_file=     # optional - "$CWD/usr/share/pixmaps/icon.png"
+
+bootstrap_type=               # empty (default) - multilib - chaotic - archlinuxcn - aur
+use_local_junest_bootstrap=0  # 0 (false) or 1 (true) - optional
+
+junest_link=  # optional
+# junest_link="https://pub-a2af2344e8554f6c807bc3db355ae622.r2.dev/junest/junest-x86_64.tar.gz"
+# junest_link="https://github.com/ivan-hc/junest/releases/download/continuous/junest-x86_64.tar.gz"
+
+add_basic_stuff=  # optional
+add_compilers=    # optional - for aur
+
+bin_saved=    # optional - "bin1 bin2 bin3"
+share_saved=  # optional - "share1 share2 share3"
+lib_saved=    # optional - "lib1 lib2.so prefixlib"
+
+remove_others_share_bloatwares=  # optional - "dir1|dir2|dir3"
+remove_others_libs_bloatwares=   # optional - "dir1|dir2|lib1"
+remove_others_bins_bloatwares=   # optional - "bin1|bin2|bin3"
+remove_others_etc_bloatwares=    # optional - "dir1|dir2|file"
+
+config_all_locales=0  # mode conteiner: 0 (false) - 1 (true) - 2 (autodetect)
+
+use_gtk_essentials_deps=0  # mode conteiner: 0 (false) or 1 (true)
+
+noupdate=0           # 0 (false) or 1 (true)
+no_save_bins=0       # 0 (false) or 1 (true)
+use_ldd_search=0     # 0 (false) or 1 (true)
+recreate_appdir=0    # 0 (false) or 1 (true)
+create_appimage=0    # 0 (false) or 1 (true)
+
+#______________________________________________________________________________
+
+
+test -z "$package_name" && exit 1
+
+binary_name="${binary_name:-"$package_name"}"
+custom_conteiner_name="${custom_conteiner_name:+"_$custom_conteiner_name"}"
+
+conteiner_rootfs="$CWD/arch${custom_conteiner_name:-${bootstrap_type:+"_$bootstrap_type"}}_bootstrap"
+tool_dirs="$CWD/tools"
+
+appdir="$CWD/$package_name.AppDir"
+
+test -d "$tool_dirs" || mkdir -pv "$tool_dirs"
+test -d "$appdir" || mkdir -pv "$appdir"
+
+test "$bootstrap_type" = "aur" -o $enable_build_aur -eq 1 && use_aur="yay"
+
+pacman=${use_aur:-sudo "pacman"}
+
+
+# ### DOWNLOAD & CHECK TOOLS ### ################################################################################################
+
+
+export JUNEST_HOME="$conteiner_rootfs"
+HOME="$CWD"
+
+junest="$(
+    printf "$tool_dirs/junest/bin/junest"
+
+    test -d "$tool_dirs/junest" && exit 0
+    (
+        git clone https://github.com/fsquillace/junest.git "$tool_dirs/junest"
+    )
+)"
+
+junest_file="$(
+    test $use_local_junest_bootstrap -eq 1 || exit 0
+    printf "$tool_dirs/junest-x86_64.tar.gz"
+
+    test -z "$junest_link" -o -f "$tool_dirs/junest-x86_64.tar.gz" && exit 0
+    (
+        wget -q --show-progress -O "$tool_dirs/junest-x86_64.tar.gz" "$junest_link"
+    )
+)"
+
+apprun="$(
+    test "$mode" = "conteiner" && {
+        test $use_apprun_bwrap -eq 2 && {
+            printf "$tool_dirs/AppRun_proot"
+            test -f "$tool_dirs/AppRun_proot" && exit 0
+            (
+                wget -q --show-progress -O "$tool_dirs/AppRun_proot" \
+                    https://raw.githubusercontent.com/LinuxDicasPro/ArchAppImage/refs/heads/master/tools/AppRun_proot
+            )
+            exit 0
+        }
+        test $use_apprun_bwrap -eq 1 && {
+            printf "$tool_dirs/AppRun_bwrap"
+            test -f "$tool_dirs/AppRun_bwrap" && exit 0
+            (
+                wget -q --show-progress -O "$tool_dirs/AppRun_bwrap" \
+                    https://raw.githubusercontent.com/LinuxDicasPro/ArchAppImage/refs/heads/master/tools/AppRun_bwrap
+            )
+            exit 0
+        }
+        printf "$tool_dirs/AppRun_Conteiner"
+        test -f "$tool_dirs/AppRun_Conteiner" && exit 0
+        (
+            wget -q --show-progress -O "$tool_dirs/AppRun_Conteiner" \
+                https://raw.githubusercontent.com/LinuxDicasPro/ArchAppImage/refs/heads/master/tools/AppRun_Conteiner
+        )
+        exit 0
+    }
+    printf "$tool_dirs/AppRun_Universal"
+    test -f "$tool_dirs/AppRun_Universal" && exit 0
+    (
+        wget -q --show-progress -O "$tool_dirs/AppRun_Universal" \
+            https://raw.githubusercontent.com/LinuxDicasPro/ArchAppImage/refs/heads/master/tools/AppRun_Universal
+    )
+)"
+
+printf "use apprun:       $apprun \n"
+printf "junest command:   $junest \n"
+printf "junest bootstrap: ${junest_file:-"disabled"} \n"
+printf "package manager:  $pacman \n"
+
+
+# ### DOWNLOAD APPIMAGE TOOLS ### ###############################################################################################
+
+
+test -d "$tool_dirs" || mkdir -pv "$tool_dirs"
+
+test -f "$tool_dirs/appimagetool" || {
+    wget -q --show-progress -O "$tool_dirs/appimagetool" \
+        https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+    chmod -v +x "$tool_dirs/appimagetool"
+}
+
+test -f "$tool_dirs/runtime" || wget -q --show-progress -O "$tool_dirs/runtime" \
+    https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64
+
+
+# ### FUNCTIONS ### #############################################################################################################
+
+
+function _extra_config
+{
+    true  # add extra configs
+}
+
+
+function _remove_others_bloatwares
+{
+    rm -rf "$appdir/etc/makepkg.conf"
+    rm -rf "$appdir/etc/pacman.conf"
+
+    etc_remove="makepkg.conf pacman"
+    bin_remove="gcc"
+    lib_remove="gcc"
+    share_remove="gcc"
+
+    for r in $etc_remove
+    {
+        rm -rf "$appdir"/etc/"$r"*
+    }
+
+    for r in $bin_remove
+    {
+        rm -rf "$appdir"/usr/bin/"$r"*
+    }
+
+    for r in $lib_remove
+    {
+        rm -rf "$appdir"/usr/lib/"$r"*
+    }
+
+    for r in $share_remove
+    {
+        rm -rf "$appdir"/usr/share/"$r"*
+    }
+}
+
+
+function _junest_update
+{
+    "$junest" -f -- bash -c "
+        pacman -Syy
+        pacman --noconfirm -Syu
+    "
+}
+
+
+function _country_mirrorlist
+{
+    country="$( awk -F '"' '{print $4}' <(grep country <(curl -i ipinfo.io 2>/dev/null )))"
+
+    grep -q Server <( curl --silent https://archlinux.org/mirrorlist/?country=$country ) || {
+        sed 's/#Server/Server/g' <( awk NR==2 RS=  <( curl -Ls https://archlinux.org/mirrorlist/all )) > "$conteiner_rootfs/etc/pacman.d/mirrorlist"
+        return 0
+    }
+
+    sed "s/#Server/Server/" <( curl -Ls https://archlinux.org/mirrorlist/?country=$country ) > "$conteiner_rootfs/etc/pacman.d/mirrorlist"
+}
+
+
+function _made_JuNest_a_potable_app
+{
+    sed -i 's|${JUNEST_HOME}/usr/bin/junest_wrapper|${HOME}/.cache/junest_wrapper.old|g' "$appdir/junest/lib/core/wrappers.sh"
+    sed -i 's|--bind "$HOME" "$HOME"|--bind-try /home /home --bind-try /run/user /run/user|g' "$appdir/junest/lib/core/namespace.sh"
+    sed -i 's/rm -f "${JUNEST_HOME}${bin_path}_wrappers/#rm -f "${JUNEST_HOME}${bin_path}_wrappers/g' "$appdir/junest/lib/core/wrappers.sh"
+    sed -i 's/rm -f "$file"/test -f "$file"/g' "$appdir/junest/lib/core/wrappers.sh"
+    sed -i 's/ln/#ln/g' "$appdir/junest/lib/core/wrappers.sh"
+}
+
+
+function _enable_mountpoints_for_the_inbuilt_bubblewrap
+{
+    mkdir -pv "$appdir"/{home,mnt,tmp,media,opt,run/{media,user},usr/{lib/locale,share/{fonts,themes}}}
+
+    test -f "$appdir/etc/localtime" && rm -vf "$appdir/etc/localtime"
+    > "$appdir/etc/localtime"
+
+    test -f "$appdir/etc/asound.conf" || > "$appdir/etc/asound.conf"
+}
+
+
+function _create_desktop_file
+{
+    name=( ${package_name//-/[ ]} )
+
+    printf \
+"[Desktop Entry]
+Version=1.0
+Type=Application
+Name=${name[@]^}
+Comment=${name[@]^}
+Exec=$binary_name
+Icon=$package_name
+Categories=Utility;
+Terminal=true
+StartupNotify=true
+" > "$appdir/$package_name.desktop"
+
+     wget -q --show-progress -O "$appdir/$package_name.png" \
+        https://raw.githubusercontent.com/LinuxDicasPro/ArchAppImage/refs/heads/master/logo.png
+}
+
+
+# ### CREATE CONTEINER ### ######################################################################################################
+
+
+test -d "$conteiner_rootfs" || {
+    "$junest" setup ${junest_file:+-i "$junest_file"}
+
+    test "$bootstrap_type" = "multilib" -o $enable_multilib -eq 1 && sed -i '/^#\[multilib\]/{s/^#//;n;s/^#//}' "$conteiner_rootfs/etc/pacman.conf"
+
+    test "$bootstrap_type" = "chaotic" -o $enable_chaoticaur -eq 1 && "$junest" -f -- bash -c "
+        pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com
+        pacman-key --lsign-key 3056513887B78AEB
+        pacman --noconfirm -U https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst
+        pacman-key --populate chaotic
+        printf '\n[chaotic-aur]\nInclude = /etc/pacman.d/chaotic-mirrorlist' >> /etc/pacman.conf
+    "
+
+    test "$bootstrap_type" = "archlinuxcn" -o $enable_archlinuxcn -eq 1 && {
+        archlinuxcn_link="https://repo.archlinuxcn.org/x86_64/$( l=( $(
+            grep "^archlinuxcn-keyring.*zst$" <(
+                awk -F '"' '{print $2}' <(
+                    curl -Ls https://repo.archlinuxcn.org/x86_64/ ))))
+            printf "${l[-1]}"
+        )"
+
+        "$junest" -f -- bash -c "
+            pacman --noconfirm -U $archlinuxcn_link
+            printf '\n[archlinuxcn]\n#SigLevel = Never\nServer = http://repo.archlinuxcn.org/\$arch' >> /etc/pacman.conf
+        "
+    }
+
+    _country_mirrorlist
+
+    sed -i 's/#SigLevel/SigLevel/g' "$conteiner_rootfs/etc/pacman.conf"
+    sed -i 's/Required DatabaseOptional/Never/g' "$conteiner_rootfs/etc/pacman.conf"
+
+    _junest_update && noupdate=1
+
+    "$junest" -f -- bash -c "pacman --noconfirm -S which alsa-lib pacman-contrib binutils debugedit gzip $add_basic_stuff $use_font"
+
+    test -z "$use_aur" || "$junest" -f -- bash -c "
+        pacman -S base-devel $add_compilers
+        gpg --keyserver keyserver.ubuntu.com --recv-key C01E1CAD5EA2C4F0B8E3571504C367C218ADD4FF
+    "
+
+    lang="${LANG%%.*}"
+    sed -i "s/#$lang/$lang/" "$conteiner_rootfs/etc/locale.gen"
+    sed -i "s/LANG=.*/LANG=$LANG/" "$conteiner_rootfs/etc/locale.conf"
+
+    "$junest" -f -- bash -c "
+        pacman --noconfirm -S glibc
+        locale-gen
+    "
+}
+
+
+# ### INSTALL PACKAGES ### ######################################################################################################
+
+
+test $noupdate = 1 || _junest_update
+
+"$junest" -- bash -c "$pacman --noconfirm -S $package_name $dependencies"
+"$junest" -f -- bash -c "glib-compile-schemas /usr/share/glib-2.0/schemas/"
+
+
+# ### EXTRACT AUTO DEPENDENCIES ### #############################################################################################
+
+
+remove_share_bloatwares="share/(cmake|man|licenses|doc|locale|info|gtk-doc|zoneinfo|pkgconfig${remove_others_share_bloatwares:+"|$remove_others_share_bloatwares"})"
+remove_libs_bloatwares="lib/(cmake|pkgconfig|systemd|sysctl.d|tmpfiles.d|sysusers.d|lib.*[.]a${remove_others_libs_bloatwares:+"|$remove_others_libs_bloatwares"})"
+remove_bins_bloatwares="bin/(systemd${remove_others_bins_bloatwares:+"|$remove_others_bins_bloatwares"})"
+remove_etc_bloatwares="/etc/(makepkg.conf.d|systemd${remove_others_etc_bloatwares:+"|$remove_others_etc_bloatwares"})"
+
+find_deps=( $("$junest" -- bash -c "pactree -d $level_search_deps -u $package_name") )
+filter_deps=( ${find_deps[*]/[>|=]*/} )
+list_deps="${filter_deps[*]:1}"
+
+list_files=$( awk '{print $2}' <( grep -Ev \
+    "/var|__pycache__|/$|$remove_etc_bloatwares|/usr/(include|$remove_bins_bloatwares|$remove_libs_bloatwares|$remove_share_bloatwares)" <(
+    "$junest" -- bash -c "pacman -Ql $list_deps"
+)))
+
+
+# ### EXTRACT MANUAL DEPENDENCIES ### ###########################################################################################
+
+
+test -z "$dependencies" || {
+    for dep in $dependencies
+    {
+        find_add_deps=( ${find_add_deps[*]} $("$junest" -- bash -c "pactree -d $level_search_add_deps -u $dep") )
+    }
+
+    list_add_deps=( ${find_add_deps[*]/[>|=]*/} )
+
+    list_add_files=$( awk '{print $2}' <( grep -Ev \
+    "/var|__pycache__|/$|$remove_etc_bloatwares|/usr/(include|$remove_bins_bloatwares|$remove_libs_bloatwares|$remove_share_bloatwares)" <(
+        "$junest" -- bash -c "pacman -Ql ${list_add_deps[*]}"
+    )))
+}
+
+
+# ### EXTRACT CONTEINER ESSENTIALS DEPS ### #####################################################################################
+
+
+test "$mode" = "default" || {
+    test $use_gtk_essentials_deps -eq 0 || gtk_essentials_deps="gtk3 gdk-pixbuf2"
+    test $use_lib_browser_launcher -eq 0 || xapp="xapp"
+
+    essentials_deps="glibc glib2 gzip shared-mime-info hicolor-icon-theme $gtk_essentials_deps $xapp"
+
+    for dep in $essentials_deps
+    {
+        find_edeps=( ${find_edeps[*]} $("$junest" -- bash -c "pactree -d 1 -u $dep") )
+    }
+
+    list_edeps=( ${find_edeps[*]/[>|=]*/} )
+
+    list_efiles=$( awk '{print $2}' <( grep -Ev \
+    "/var|__pycache__|/$|$remove_etc_bloatwares|/usr/(include|$remove_bins_bloatwares|$remove_libs_bloatwares|$remove_share_bloatwares)" <(
+        "$junest" -- bash -c "pacman -Ql ${list_edeps[*]}"
+    )))
+}
+
+
+# ### EXTRACT DEPENDENCIES LDD ### ##############################################################################################
+
+
+test $use_ldd_search -eq 0 || {
+    ldd_search_libs=$("$junest" -- bash -c "sort -u <(grep -Eo '/usr/lib/.*[.]so' <(ldd -v \$(which $binary_name)))")
+    search_files=$( printf "%s\n" $conteiner_rootfs/usr/lib/* )
+
+    for f in $ldd_search_libs
+    {
+        finder="$( grep "$f" <<< $search_files || true )"
+        ldd_libs+="${finder//"$conteiner_rootfs"/}\n"
+    }
+}
+
+list_binary_files=$( awk '{print $2}' <(
+    grep -Ev '__pycache__|/$|/usr/(share/(man|doc|info|pkgconfig)|include)' <(
+        "$junest" -- bash -c "pacman -Ql $package_name"
+)))
+
+all_files="$(echo -e "$list_files\n$list_add_files\n$list_efiles\n$list_binary_files\n$ldd_libs")"
+
+
+# ### EXTRACT DEPS GDK-PIXBUF-2 ### #############################################################################################
+
+
+grep "libgdk_pixbuf-2.0.so" <<< "$all_files" && {
+    libgdk_loaders=$( printf "%s\n" $conteiner_rootfs*/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders/* )
+    search_files=$( printf "%s\n" $conteiner_rootfs/usr/lib/* )
+
+    for f in ${libgdk_loaders//"$conteiner_rootfs"/}
+    {
+        gdk_search_libs+="$("$junest" -- bash -c "sort -u <(grep -Eo '/usr/lib/.*[.]so' <(ldd -v \$(which $f)))")"
+
+        for g in $gdk_search_libs
+        {
+            finder="$( grep "$g" <<< $search_files || true )"
+            gdk_libs+="${finder//"$conteiner_rootfs"/}\n"
+        }
+    }
+
+    all_files+="$( echo -e "\n$gdk_libs${libgdk_loaders//"$conteiner_rootfs"/}" )"
+}
+
+all_files="$( sort -u <<< "$all_files" )"
+
+
+# ### COPY DEPENDENCIES ### #####################################################################################################
+
+
+test $recreate_appdir -eq 0 || {
+    test -d "$appdir" && rm -vr "$appdir"/* || true
+}
+
+for file in $all_files
+{
+    orig_file="$conteiner_rootfs$file"
+    dest_file="$appdir$file"
+
+    test -L "$orig_file" -a -d "$orig_file" && {
+        printf "symbolic link dir $orig_file \n"
+        continue
+    }
+
+    dest_dir="$appdir${file%/*}"
+
+    test -d "$dest_dir" || mkdir -pv "$dest_dir"
+
+    test -f "$dest_file" || {
+        test -e "$orig_file" && cp -av "$orig_file" "$dest_dir"
+    }
+}
+
+test "$mode" = "default" || {
+    test -d "$appdir/etc" || mkdir -pv "$appdir/etc"
+
+    test -f "$appdir/usr/lib/ld-linux-x86-64.so.2" || cp -v "$conteiner_rootfs/usr/lib/ld-linux-x86-64.so.2" "$appdir/usr/lib/"
+    test -f "$appdir/usr/lib/libc.so.6" || cp -v "$conteiner_rootfs"/usr/lib/libc.so* "$appdir/usr/lib/"
+    test -f "$appdir/usr/lib/libcap.so.2" || cp -v "$conteiner_rootfs"/usr/lib/libcap.so* "$appdir/usr/lib/"
+    test -f "$appdir/usr/lib/libgcc_s.so.1" || cp -v "$conteiner_rootfs"/usr/lib/libgcc_s.so* "$appdir/usr/lib/"
+    test -f "$appdir/usr/lib/libncursesw.so.6" || cp -v "$conteiner_rootfs"/usr/lib/libncursesw.so* "$appdir/usr/lib/"
+    test -f "$appdir/usr/lib/libreadline.so.8" || cp -v "$conteiner_rootfs"/usr/lib/libreadline.so* "$appdir/usr/lib/"
+    test -f "$appdir/usr/lib/libacl.so.1" || cp -v "$conteiner_rootfs"/usr/lib/libacl.so* "$appdir/usr/lib/"
+
+    cp -v "$conteiner_rootfs"/usr/bin/{bash,bwrap,env,sh,tr,tty,sed,rm,proot*} "$appdir/usr/bin"
+    cp -av "$conteiner_rootfs/etc/junest" "$appdir/etc"
+
+    test -d "$appdir/junest" -o $use_apprun_bwrap -gt 0 || {
+        test -d "$tool_dirs/junest" || git clone https://github.com/fsquillace/junest.git "$tool_dirs/junest"
+        mkdir -pv "$appdir/junest"
+        cp -av "$tool_dirs"/junest/{bin,lib} "$appdir/junest"
+    }
+
+    (
+        cd "$appdir"
+        test -L "$appdir/bin" || ln -sv usr/bin bin
+        test -L "$appdir/lib64" || ln -sv usr/lib lib64
+    )
+}
+
+
+# ### COPY SAVED DEPENDENCIES ### ###############################################################################################
+
+
+lib_browser_launcher="gio-launch-desktop libasound.so libatk-bridge libatspi libcloudproviders libdb- libdl.so libedit libepoxy \
+    libgtk-3.so.0 libjson-glib libnssutil libpthread.so librt.so libtinysparql libwayland-cursor libX11-xcb.so libxapp-gtk3-module.so \
+    libXcursor libXdamage libXi.so libxkbfile.so libXrandr p11 pk"
+
+lib_audio_keywords="alsa jack pipewire pulse"
+
+test $use_lib_browser_launcher -eq 0 || lib_saved="$lib_saved $lib_browser_launcher"
+test $use_lib_audio_keywords -eq 0 || lib_saved="$lib_saved $lib_audio_keywords"
+
+test -z "$bin_saved" || for bin in $bin_saved
+{
+    cp -av "$conteiner_rootfs/usr/bin"/$bin "$appdir/usr/bin" || true
+}
+
+test -z "$lib_saved" || for lib in $lib_saved
+{
+    cp -av "$conteiner_rootfs/usr/lib"/$lib* "$appdir/usr/lib" || true
+}
+
+test -z "$share_saved" || for share in $share_saved
+{
+    cp -av "$conteiner_rootfs/usr/share"/$share* "$appdir/usr/share" || true
+}
+
+
+# ### COPY ICON DESKTOP FILE & APPRUN ### #######################################################################################
+
+
+shopt -s nullglob
+
+desktop_file="${use_desktop_file:-"$(
+    d=( $appdir*/usr/share/applications/*"$package_name"*.desktop )
+    printf "${d[0]}"
+)"}"
+
+icon_file="${use_icon_file:-"$(
+    : $(grep "Icon=" "$desktop_file")
+    icon=${_:5}
+    icons=( $(sort -Vr <( printf $appdir*/usr/share/{pixmaps,icons/hicolor/{scalable,*x*}/apps/}$icon.{sv,pn}g )) )
+    printf "${icons[0]}"
+)"}"
+
+shopt -u nullglob
+
+test -z "$desktop_file" && {
+    desktop="$package_name.desktop"
+    icon="$package_name.png"
+
+    _create_desktop_file || true
+} || {
+    desktop="${desktop_file##*/}"
+    icon="${icon_file##*/}"
+
+    test -f "$appdir/$desktop" || cp -v "$desktop_file" "$appdir"
+    test -f "$appdir/$icon" || cp -v "$icon_file" "$appdir"
+}
+
+cp -v "$apprun" "$appdir/AppRun"
+chmod +x "$appdir/AppRun"
+
+which_bin=$("$junest" -- bash -c "which $binary_name")
+
+test $enable_auto_integration -eq 0 || {
+    sed -i "s|AUTO_INTEGRATION=0|AUTO_INTEGRATION=1|" "$appdir/AppRun"
+
+    sed -i "s|DESKTOP=.*|DESKTOP=$desktop|" "$appdir/AppRun"
+    sed -i "s|ICON=.*|ICON=$icon|" "$appdir/AppRun"
+
+    test $enable_auto_integration_autostart -eq 0 || {
+        sed -i "s|AUTOSTART=0|AUTOSTART=1|" "$appdir/AppRun"
+
+        test -z "$autostart_parms" || sed -i "s|AUTOSTART_PARM=.*|AUTOSTART_PARM=$autostart_parms|" "$appdir/AppRun"
+    }
+}
+
+test "$mode" = "conteiner" && {
+    sed -i "s|PROGRAM=.*|PROGRAM=$which_bin|" "$appdir/AppRun"
+
+    test $use_apprun_bwrap -eq 0 || \
+        sed -i "s|LD_LINUX=.*|LD_LINUX=\$APPDIR$(awk '{print $2}' <("$junest" -- whereis -bg ld-linux*.so.2))|" "$appdir/AppRun"
+} || {
+    type_file="$(file "$appdir/$which_bin")"
+
+    if grep "Perl" <<< "$type_file"
+    then
+        sed -i "s|PROGRAM=.*|PROGRAM=\$APPDIR/usr/bin/perl \$APPDIR$which_bin|" "$appdir/AppRun"
+    elif grep "Python" <<< "$type_file"
+    then
+        sed -i "s|PROGRAM=.*|PROGRAM=\$APPDIR/usr/bin/python3 \$APPDIR$which_bin|" "$appdir/AppRun"
+    elif grep -E "(POSIX|Bourne-Again)[ ]shell" <<< "$type_file"
+    then
+        sed -i "s|PROGRAM=.*|PROGRAM=\$APPDIR/usr/bin/bash \$APPDIR$which_bin|" "$appdir/AppRun"
+    else
+        sed -i "s|PROGRAM=.*|PROGRAM=\$APPDIR$which_bin|" "$appdir/AppRun"
+    fi
+
+    sed -i "s|LD_LINUX=.*|LD_LINUX=\$APPDIR$(awk '{print $2}' <("$junest" -- whereis -bg ld-linux*.so.2))|" "$appdir/AppRun"
+}
+
+
+# ### EXTRA CONFIGS ### #########################################################################################################
+
+
+test "$mode" = "default" && {
+    shopt -s nullglob
+
+    test -d "$appdir"/usr/lib/gdk-pixbuf-2.0 -a -z "$(echo "$apprun"/usr/lib/gdk-pixbuf-2.0/*/loaders.cache)" && {
+        cp -v "$conteiner_rootfs"/usr/lib/gdk-pixbuf-2.0/*/loaders.cache "$appdir"/usr/lib/gdk-pixbuf-2.0/*
+        sed -i "s|/usr|usr|g" "$appdir"/usr/lib/gdk-pixbuf-2.0/*/loaders.cache
+    }
+
+    shopt -u nullglob
+} || {
+    test $config_all_locales -eq 0 || {
+        JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/bin/iconvconfig" || true  # glibc
+
+        test -f "$appdir/usr/share/locale/locale.alias" || {
+            test -d "$appdir/usr/share/locale" || mkdir -p "$appdir/usr/share/locale"
+            cp -v "$conteiner_rootfs/usr/share/locale/locale.alias" "$appdir/usr/share/locale"
+        }
+
+        test $config_all_locales -eq 1 && sed -E 's/# /#~/g; s/#//g; s/~/# /g' "$conteiner_rootfs/etc/locale.gen" > "$appdir/etc/locale.gen"
+
+        test $config_all_locales -eq 2 && {
+            cp -av "$conteiner_rootfs/etc/locale.gen" "$appdir/etc/locale.gen"
+
+            for lang in $(cd "$appdir/usr/share/locale"; grep -v "[.]" <(printf "%s\n" *))
+            {
+                sed -i "s/# $lang/$lang/g" "$appdir/etc/locale.gen"
+            }
+        }
+
+        JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "export PATH=/usr/bin; /usr/bin/locale-gen" || true  # glibc
+    }
+
+    JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/bin/update-mime-database /usr/share/mime" || true     # shared-mime-info
+    JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/bin/gio-querymodules /usr/lib/gio/modules" || true      # glib2
+    JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/lib/vlc/vlc-cache-gen /usr/lib/vlc/plugins" || true       # vlc
+    JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/bin/gdk-pixbuf-query-loaders --update-cache" || true        # gdk-pixbuf2
+    JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/bin/glib-compile-schemas /usr/share/glib-2.0/schemas" || true # glib2
+    JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/bin/gtk-update-icon-cache -f /usr/share/icons/breeze" || true   # gtk2 gtk3
+    JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/bin/gtk-update-icon-cache -f /usr/share/icons/Adwaita" || true    # gtk2 gtk3
+    JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/bin/gtk-update-icon-cache -f /usr/share/icons/hicolor" || true      # gtk2 gtk3
+    JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/bin/gtk-query-immodules-3.0 > /etc/gtk-3.0/immodules.cache" || true   # gtk3
+
+    test $use_apprun_bwrap -eq 0 && _made_JuNest_a_potable_app
+
+    _enable_mountpoints_for_the_inbuilt_bubblewrap
+}
+
+printf "#!/bin/bash
+JUNEST_HOME=\"$conteiner_rootfs\" "$junest" -- $binary_name \"\$@\"" > "$CWD/$binary_name-Conteiner-Test"
+
+chmod +x "$CWD/$binary_name-Conteiner-Test"
+
+_remove_others_bloatwares
+_extra_config
+
+
+# ### CREATE APPIMAGE ### #######################################################################################################
+
+
+test $create_appimage -eq 0 || {
+
+    test $no_save_bins -eq 0 || {
+        mv -v "$appdir/usr/bin" "$appdir/usr/bin2"
+        mkdir -pv "$appdir/usr/bin"
+
+        for bin in $binary_name $bin_saved
+        {
+            cp -v "$appdir/usr/bin2/$bin" "$appdir/usr/bin"
+        }
+
+        test "$mode" = "default" || {
+            test $use_apprun_bwrap -eq 2 && cp -v "$appdir"/usr/bin2/proot* "$appdir/usr/bin"
+            test $use_apprun_bwrap -eq 1 && cp -v "$appdir/usr/bin2/bwrap" "$appdir/usr/bin"
+            test $use_apprun_bwrap -eq 0 && cp -v "$appdir/usr/bin2"/{bash,bwrap,env,sh,tr,tty} "$appdir/usr/bin"
+        }
+
+        rm -vr "$appdir/usr/bin2"
+    }
+
+    strip="$(which sstrip || which strip)"
+
+    shopt -s globstar
+
+    for sfile in "$appdir"/usr/lib/**/*.so*
+    {
+        test -L "$sfile" && continue
+        "$strip" "$sfile" || true
+    }
+
+    for bfile in "$appdir"/usr/bin/**/*
+    {
+        readelf -h "$bfile" 2>&- 1>&- || continue
+        "$strip" "$bfile" || true
+    }
+
+    shopt -u globstar
+
+    type="$(
+        test "$mode" = "conteiner" && {
+            test $use_apprun_bwrap -eq 2 && printf "_proot" || true
+            test $use_apprun_bwrap -eq 1 && printf "_bwrap" || true
+            test $use_apprun_bwrap -eq 0 && printf "_junest" || true
+        } || printf "_glibc"
+    )"
+
+    n=( $( grep -E "^Name=" "$appdir"/*$package_name*.desktop ) )
+    name="${n[0]/Name=/}"
+
+    : "$("$junest" -- bash -c "pacman -Q $package_name")"
+    version="${_/$package_name /}"
+
+    UPINFO="gh-releases-zsync|${name// /_}_AppImage|latest|*x86_64.AppImage.zsync"
+
+    ARCH=x86_64 "$tool_dirs/appimagetool" \
+        --runtime-file "$tool_dirs/runtime" \
+        --comp zstd --mksquashfs-opt -Xcompression-level --mksquashfs-opt 20 \
+        -u "$UPINFO" "$appdir" "${name// /_}-$version-ArchAppImage${type}_$(date +"%d-%b-%Y")-x86_64.AppImage"
+    chmod -v +x "$CWD/${name// /_}-$version-ArchAppImage${type}_$(date +"%d-%b-%Y")-x86_64.AppImage"
+}
+
+printf "Finished!\n"
+exit 0
