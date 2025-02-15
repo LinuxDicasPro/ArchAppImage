@@ -1,0 +1,158 @@
+#!/bin/sh
+#
+# Universal AppRun for AppImage
+#
+# By Mauricio Ferrari (m10ferrari1200@gmail.com)
+#
+################################################
+
+APPDIR="$(cd "${0%/*}" && echo $PWD)"
+
+gtk_version=3  # 2, 3, 4
+qt_version=5  # 4, 5, 6
+
+function _apprun_generate
+{
+echo "#!/bin/sh
+#
+# Universal AppRun for AppImage
+#
+# By Mauricio Ferrari (m10ferrari1200@gmail.com)
+#
+################################################
+
+APPDIR=\"\$(cd \"\${0%/*}\" && echo \$PWD)\"
+
+# PROGRAM
+# - \$APPDIR/usr/bin/python3 \$APPDIR/usr/bin/scriptpython
+# - \$APPDIR/usr/bin/bash \$APPDIR/usr/bin/scriptshell
+# - \$APPDIR/usr/bin/programbinary
+
+PROGRAM=
+
+export PATH_MAPPING=
+
+export UNION_PRELOAD=\"\$APPDIR\"
+export LD_PRELOAD=\"\$APPDIR/libunionpreload.so \$APPDIR/path-mapping.so\"
+
+export XDG_DATA_DIRS=\"\$APPDIR/usr/share:/usr/share\"
+export XDG_CONFIG_DIRS=\"\$APPDIR/etc/xdg:/etc/xdg\"
+
+export TEXTDOMAINDIR=\"\$APPDIR/usr/share/locale\"
+export LOCPATH=\"\$APPDIR/usr/share/locale\"
+
+export GSETTINGS_SCHEMA_DIR=\"\$APPDIR/usr/share/glib-2.0/schemas/\"
+
+export GIMP2_LOCALEDIR=\"\$APPDIR/usr/share/locale\"
+export GIMP3_LOCALEDIR=\"\$APPDIR/usr/share/locale\"
+
+export GIMP2_DATADIR=\"$GIMP2_DATADIR\"
+export GIMP3_DATADIR=\"$GIMP3_DATADIR\"
+
+export GIMP2_SYSCONFDIR=\"$GIMP2_SYSCONFDIR\"
+export GIMP3_SYSCONFDIR=\"$GIMP3_SYSCONFDIR\"
+
+export GIMP2_PLUGINDIR=\"$GIMP2_PLUGINDIR\"
+export GIMP3_PLUGINDIR=\"$GIMP3_PLUGINDIR\"
+
+export REQUESTS_CA_BUNDLE=\"$REQUESTS_CA_BUNDLE\"
+
+export GCONV_PATH=\"$GCONV_PATH\"
+export BABL_PATH=\"$BABL_PATH\"
+export GEGL_PATH=\"$GEGL_PATH\"
+export TCL_LIBRARY=\"$TCL_LIBRARY\"
+export TK_LIBRARY=\"$TK_LIBRARY\"
+export GIO_EXTRA_MODULES=\"$GIO_EXTRA_MODULES\"
+export GI_TYPELIB_PATH=\"$GI_TYPELIB_PATH\"
+export JAVA_HOME=\"$JAVA_HOME\"
+export GEM_PATH=\"$GEM_PATH\"
+
+export PYTHONHOME=\"\$APPDIR/usr\"
+
+export GTK_PATH=\"$GTK_PATH\"
+export GTK_IM_MODULE_FILE=\"$GTK_IM_MODULE_FILE\"
+export GDK_PIXBUF_MODULEDIR=\"$GDK_PIXBUF_MODULEDIR\"
+export GDK_PIXBUF_MODULE_FILE=\"$GDK_PIXBUF_MODULE_FILE\"
+
+export GST_PLUGIN_PATH=\"$GST_PLUGIN_PATH\"
+export GST_PLUGIN_SYSTEM_PATH=\"$GST_PLUGIN_SYSTEM_PATH\"
+export GST_PLUGIN_SCANNER=\"$GST_PLUGIN_SCANNER\"
+
+export PATH=\"$SAVEPATH\"
+
+export LIBRARY_PATH=\"$LIBRARY_PATH\"
+
+export QT_PLUGIN_PATH=\"$QT_PLUGIN_PATH\"
+
+export PYTHONPATH=\"$PYTHONPATH\"
+
+export PERL5LIB=\"$PERL5LIB\"
+
+export RUBYLIB=\"$RUBYLIB\"
+
+exec \$APPDIR/lib64/ld-linux-x86-64.so.2 --inhibit-cache --library-path \"\${LIBRARY_PATH}\" \$PROGRAM \"\$@\"
+" > AppRun-gen
+
+sed -i "s|$APPDIR|\$APPDIR|g" AppRun-gen
+
+}
+
+shopt -s nullglob extglob
+
+export GIMP2_DATADIR="$(echo $APPDIR*/usr/share/gimp/*)"
+export GIMP3_DATADIR="$(echo $APPDIR*/usr/share/gimp/*)"
+
+export GIMP2_SYSCONFDIR="$(echo $APPDIR*/etc/gimp/*)"
+export GIMP3_SYSCONFDIR="$(echo $APPDIR*/etc/gimp/*)"
+
+export GIMP2_PLUGINDIR="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}gimp/*); echo "${i[0]}")"
+export GIMP3_PLUGINDIR="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}gimp/*); echo "${i[0]}")"
+
+export REQUESTS_CA_BUNDLE=$(i=(/etc/{ssl,pki}/certs/ca-{certificates,bundle}*crt); echo "${i[0]}")
+
+export GCONV_PATH="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}gconv); echo "${i[0]}")"
+
+export BABL_PATH="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}babl-*); echo "${i[0]}")"
+
+export GEGL_PATH="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}gegl-*); echo "${i[0]}")"
+
+export TCL_LIBRARY="$(i=($APPDIR*/{{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/},usr/share/}tcl8.6); echo "${i[0]}")"
+
+export TK_LIBRARY="$(i=($APPDIR*/{{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/},usr/share/}tk8.6); echo "${i[0]}")"
+
+export GIO_EXTRA_MODULES="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}gio/modules); echo "${i[0]}")"
+
+export GI_TYPELIB_PATH="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}girepository-1.0); echo "${i[0]}")"
+
+export JAVA_HOME="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}{jvm/java*,jdk*}); echo "${i[0]}")"
+
+export GTK_IM_MODULE_FILE="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}gtk-${gtk_version:-*}.0/*/immodules.cache); echo "${i[0]}")"
+export GDK_PIXBUF_MODULEDIR="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}gdk-pixbuf-2.0/2.10.0/loaders); echo "${i[0]}")"
+export GDK_PIXBUF_MODULE_FILE="${GDK_PIXBUF_MODULEDIR:+$GDK_PIXBUF_MODULEDIR.cache}"
+
+export GST_PLUGIN_PATH="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}gstreamer*1.0); echo "${i[0]}")"
+export GST_PLUGIN_SYSTEM_PATH="${GST_PLUGIN_PATH}"
+export GST_PLUGIN_SCANNER="${GST_PLUGIN_PATH:+$GST_PLUGIN_PATH/gst-plugin-scanner}"
+
+IFS_BAK=$IFS
+IFS=:
+
+export GTK_PATH="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}gtk-${gtk_version:-*}.0); echo "${i[*]}")"
+export SAVEPATH="$(i=($APPDIR*/{{,usr/}{,s}bin,usr/{libexec,{,share/}games}}); echo "${i[*]}")"
+
+export LIBRARY_PATH=${LIBRARY_PATH}:"$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}{,*/}); echo "${i[*]}")"
+
+export QT_PLUGIN_PATH="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}qt${qt_version:-*}/{,plugins/{,*/}}); echo "${i[*]}")"
+
+export PYTHONPATH="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}python3.*/{,site-packages/*/,*/}); echo "${i[*]}")"
+
+export PERL5LIB="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}perl{,5,-base}/{,*5.*/,*/}{,*/{,*/{,*/{,*/}}}}); echo "${i[*]}")"
+
+RUBYLIB="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}ruby/{,*/}); echo "${i[*]}")"
+GEM_PATH="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}ruby/gems); echo "${i[0]}")"
+
+IFS=$IFS_BAK
+
+shopt -u nullglob extglob
+
+_apprun_generate
