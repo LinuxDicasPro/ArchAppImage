@@ -322,6 +322,15 @@ test -d "$conteiner_rootfs" || {
 
     "$junest" -f -- bash -c "pacman --noconfirm -S which alsa-lib pacman-contrib binutils debugedit gzip $add_basic_stuff $use_font"
 
+    libselinux_link="https://repo.taiho.moe/selinux/$( l=( $(
+        grep "^libselinux.*zst$" <(
+            awk -F '"' '{print $2}' <(
+                curl -Ls https://repo.taiho.moe/selinux/ ))))
+        printf "${l[-1]}"
+    )"
+
+    "$junest" -f -- bash -c "pacman --noconfirm -U $libselinux_link"
+
     test -z "$use_aur" || "$junest" -f -- bash -c "
         pacman -S base-devel $add_compilers
         gpg --keyserver keyserver.ubuntu.com --recv-key C01E1CAD5EA2C4F0B8E3571504C367C218ADD4FF
@@ -488,9 +497,11 @@ test "$mode" = "default" || {
     test -f "$appdir/usr/lib/libncursesw.so.6" || cp -v "$conteiner_rootfs"/usr/lib/libncursesw.so* "$appdir/usr/lib/"
     test -f "$appdir/usr/lib/libreadline.so.8" || cp -v "$conteiner_rootfs"/usr/lib/libreadline.so* "$appdir/usr/lib/"
     test -f "$appdir/usr/lib/libacl.so.1" || cp -v "$conteiner_rootfs"/usr/lib/libacl.so* "$appdir/usr/lib/"
+    test -f "$appdir/usr/lib/libselinux.so.1" || cp -v "$conteiner_rootfs"/usr/lib/libselinux.so* "$appdir/usr/lib/"  # Debian
 
     cp -v "$conteiner_rootfs"/usr/bin/{bash,bwrap,env,sh,tr,tty,sed,rm,proot*} "$appdir/usr/bin"
     cp -av "$conteiner_rootfs/etc/junest" "$appdir/etc"
+    cp -av "$conteiner_rootfs"/usr/share/{X11,wayland} "$appdir/usr/share/"
 
     test -d "$appdir/junest" -o $use_apprun_bwrap -gt 0 || {
         test -d "$tool_dirs/junest" || git clone https://github.com/fsquillace/junest.git "$tool_dirs/junest"

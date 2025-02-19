@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Universal AppRun for AppImage
 #
@@ -54,24 +54,26 @@ test $AUTO_INTEGRATION -eq 0 || {
         test -f "$local_autostart/$DESKTOP" || cp "$APPDIR/$DESKTOP" "$local_autostart"
     }
 
-    grep -q "$APPIMAGE" "$local_desktop/$DESKTOP" || {
+    test -z "$DESKTOP" || {
+        grep -q "$APPIMAGE" "$local_desktop/$DESKTOP" || {
 
-        parm="$( grep -o " .*"  <( grep -m1 "^Exec=.*" "$APPDIR/$DESKTOP" ))"
+            parm="$( grep -o " .*"  <( grep -m1 "^Exec=.*" "$APPDIR/$DESKTOP" ))"
 
-        sed -i "s|Exec=.*|Exec=${APPIMAGE}${parm}|" "$local_desktop/$DESKTOP"
-        sed -i "s|Icon=.*|Icon=${ICON%[.]*}|" "$local_desktop/$DESKTOP"
+            sed -i "s|Exec=.*|Exec=${APPIMAGE}${parm}|" "$local_desktop/$DESKTOP"
+            sed -i "s|Icon=.*|Icon=${ICON%[.]*}|" "$local_desktop/$DESKTOP"
 
-        test $AUTOSTART -eq 0 || {
-            autoparm=${AUTOSTART_PARM:+" $AUTOSTART_PARM"}
-            sed -i "s|Exec=.*|Exec=${APPIMAGE}${autoparm}${parm}|" "$local_autostart/$DESKTOP"
-            sed -i "s|Icon=.*|Icon=${ICON%[.]*}|" "$local_autostart/$DESKTOP"
+            test $AUTOSTART -eq 0 || {
+                autoparm=${AUTOSTART_PARM:+" $AUTOSTART_PARM"}
+                sed -i "s|Exec=.*|Exec=${APPIMAGE}${autoparm}${parm}|" "$local_autostart/$DESKTOP"
+                sed -i "s|Icon=.*|Icon=${ICON%[.]*}|" "$local_autostart/$DESKTOP"
+            }
+
+            /usr/bin/update-desktop-database -q 2>&1 >&-
+
+            test -e usr/share/icons/hicolor/icon-theme.cache && \
+                test -x /usr/bin/gtk-update-icon-cache && \
+                    /usr/bin/gtk-update-icon-cache ~/.local/share/pixmaps/ 2>&1 >&-
         }
-
-        /usr/bin/update-desktop-database -q 2>&1 >&-
-
-        test -e usr/share/icons/hicolor/icon-theme.cache && \
-            test -x /usr/bin/gtk-update-icon-cache && \
-                /usr/bin/gtk-update-icon-cache ~/.local/share/pixmaps/ 2>&1 >&-
     }
 }
 
