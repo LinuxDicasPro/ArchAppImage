@@ -497,7 +497,7 @@ test "$mode" = "default" || {
     test -f "$appdir/usr/lib/libncursesw.so.6" || cp -v "$conteiner_rootfs"/usr/lib/libncursesw.so* "$appdir/usr/lib/"
     test -f "$appdir/usr/lib/libreadline.so.8" || cp -v "$conteiner_rootfs"/usr/lib/libreadline.so* "$appdir/usr/lib/"
     test -f "$appdir/usr/lib/libacl.so.1" || cp -v "$conteiner_rootfs"/usr/lib/libacl.so* "$appdir/usr/lib/"
-    test -f "$appdir/usr/lib/libselinux.so.1" || cp -v "$conteiner_rootfs"/usr/lib/libselinux.so* "$appdir/usr/lib/"  # Debian
+    test -f "$appdir/usr/lib/libselinux.so.1" || cp -v "$tool_dirs"/libselinux.so* "$appdir/usr/lib/"  # Debian
 
     cp -v "$conteiner_rootfs"/usr/bin/{bash,bwrap,env,sh,tr,tty,sed,rm,proot*} "$appdir/usr/bin"
     cp -av "$conteiner_rootfs/etc/junest" "$appdir/etc"
@@ -648,7 +648,7 @@ test "$mode" = "default" && {
 
             for lang in $(cd "$appdir/usr/share/locale"; grep -v "[.]" <(printf "%s\n" *))
             {
-                sed -i "s/# $lang/$lang/g" "$appdir/etc/locale.gen"
+                sed -i "s/#$lang/$lang/g" "$appdir/etc/locale.gen"
             }
         }
 
