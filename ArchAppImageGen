@@ -1,0 +1,389 @@
+#!/bin/bash
+#
+# Configuration Script for ArchAppImage
+#
+# By Mauricio Ferrari
+#
+###############################################################################
+
+# 86 26
+
+set -e
+
+printf "\e]2;ArchAppImage - Empacotador de AppImage\007"
+
+: "$(readlink -f "$0")"
+CWD=${_%/*}
+
+cols=${COLUMNS:-$(tput cols)}
+rows=${LINES:-$(tput lines)}
+
+test $cols -lt 88 -o $rows -lt 28 && {
+    printf '\033[8;30;90t'
+    sleep 0.1
+    exec $0  # Sério. Se ajustar a resolução, temque abrir de novo.
+    exit 0
+}
+
+config_file=~/.config/ArchAppImage.conf
+
+rst="\e[0m"
+blue="\e[1;38;5;7;48;5;24m"
+alt_blue="\e[1;38;5;7;48;5;18m"
+red="\e[1;38;5;7;48;5;160m"
+violet="\e[1;38;5;7;48;5;57m"
+box="\e[1;38;5;7;48;5;237m"
+
+TL="┌"  # Top Left
+TR="┐"  # Top Right
+BL="└"  # Bottom Left
+BR="┘"  # Bottom Right
+H="─"   # Horizontal
+V="│"   # Vertical
+
+
+function _project_dir
+{
+    test -f $config_file || printf "PROJECT_DIR=$HOME/ArchAppImage\n" > $config_file
+
+    : "$( grep "PROJECT_DIR" $config_file )"
+    printf ${_#*=}
+}
+
+
+function _top_border
+{
+    cl=${1:-$cols}
+    color="$blue"
+
+    test -z "$2" || {
+        tput cup $(($2 + 1)) $3
+        color="$alt_blue"
+    }
+
+    printf "${color}$TL"
+    for ((x = 2; x < cl; x++))
+    {
+        printf "$H"
+    }
+    printf "$TR\n"
+}
+
+
+function _vertical_border_background
+{
+    cl=${1:-$cols}
+    rs=${2:-$rows}
+
+    for ((y = 2; y < rs; y++))
+    {
+        test -z "$3" || tput cup $(($3 + y)) $4
+        printf "${V}%$(($cl - 2))s${V}\n" " "
+    }
+}
+
+
+function _bottom_border
+{
+    cl=${1:-$cols}
+
+    test -z "$3" || tput cup $(($3 + $2)) $4
+
+    printf "$BL"
+    for ((x = 2; x < cl; x++))
+    {
+        printf "$H"
+    }
+    printf "$BR"
+}
+
+
+function _title
+{
+    msg=${1:-"sample title"}
+    text_length=${#msg}
+    text_x=$(( (${cols} - text_length) / 2 ))
+    color="$blue"
+
+    y=${2:-1}
+    test $y -eq 0 && {
+        y=$(( (rows - $3) / 2 + 2))
+        color="$alt_blue"
+    }
+
+    tput cup $y $text_x
+    printf "$color${msg^^}"
+}
+
+
+function _center_text
+{
+    centertext=( $1 )
+    i=${2:-0}
+    y=${3:-0}
+
+    for text in "${centertext[@]//_/ }"
+    {
+        cp=${#text}
+        pos_x=$(( (cols - cp) / 2 ))
+        pos_y=$(( (rows / 2) - $y + i ))
+
+        cap="${text#*\'}"
+        cap="${cap%\'*}"
+
+        text="${text//\[/$red\[}"
+        text="${text//\]/\]$alt_blue}"
+        text="${text//\'*\'/$violet\'$cap\'$alt_blue}"
+
+        tput cup $pos_y $pos_x
+        printf "$text\n"
+        i=$((i + 1))
+    }
+}
+
+
+function _custom_read
+{
+    declare -r CHAR_LF=$'\n'
+    declare -r CHAR_ESC=$'\e'
+    declare -r CHAR_BS=$'\x7F'
+    RES=
+
+    test -z "$1" || RES="$1"
+    printf "$RES"
+
+    while read -rN 1 -d "" CHAR; do
+        case "$CHAR" in
+            "$CHAR_ESC")
+                RES=
+                break
+                ;;
+            "$CHAR_LF")
+                break
+                ;;
+            "$CHAR_BS")
+                test -z $RES || {
+                    RES="${RES::-1}"
+                    echo -ne "\b \b"
+                }
+                echo -ne "\b\b  \b\b"
+                ;;
+            *)
+                RES+="${CHAR}"
+                ;;
+        esac
+    done
+}
+
+
+function _text_box
+{
+    start_x=$(( (cols - cl) / 2 + 2))
+    start_y=$(( (rows - rs) / 2 + 2 + ${3:-0} ))
+
+    tput cup $start_y $start_x
+    printf "${alt_blue}${1}:"
+
+    tput cup $start_y $(( $start_x + ${#1} + 2))
+
+    test -z $dis_box || return 0
+
+    printf "$box%$(( $2 - ${#1} - 6 ))s" ""
+    tput cup $start_y $(( $start_x + ${#1} + 2))
+}
+
+
+function _screen_bg
+{
+    cl=${1:-$cols}
+    rs=${2:-$rows}
+
+    test -z "$1" || {
+        start_x=$(( (cols - cl) / 2 ))
+        start_y=$(( (rows - rs) / 2 ))
+    }
+
+    _top_border $cl $start_y $start_x
+    _vertical_border_background $cl $rs $start_y $start_x
+    _bottom_border $cl $rs $start_y $start_x
+    tput cuu1
+    printf "\r$blue$V"
+}
+
+
+function __config
+{
+    cl=
+    rs=
+    start_x=
+    start_y=
+
+    _screen_bg
+
+    _title "ArchAppImage - Empacotador de AppImage - Configurações"
+
+    _screen_bg 60 9
+    _title "Configurações do ArchAppImage" 0 9
+
+    _text_box "Diretório do Projeto" 60 3
+
+    _custom_read "$( _project_dir )"
+
+    printf "$rst"
+    clear
+
+    test -z "$RES" || {
+        test -d "$RES" || mkdir -p "$RES"
+        test -d "$RES/tools" || mkdir -p "$RES/tools"
+
+        for f in APP-ArchAppImage AppRun_bwrap AppRun_Conteiner AppRun_proot AppRun_Universal
+        {
+            test -d "$RES/tools/$f" || {
+                test -e "$CWD/tools/$f" && cp "$CWD/tools/$f" "$RES/tools"
+            }
+        }
+
+        sed -i "s|PROJECT_DIR=.*|PROJECT_DIR=$RES|" $config_file
+    }
+
+    __main
+}
+
+
+function __new_appimage
+{
+    cl=
+    rs=
+    start_x=
+    start_y=
+
+    _screen_bg
+
+    _title "ArchAppImage - Empacotador de AppImage - Novo Projeto"
+
+    _screen_bg 86 26
+    _title "Novo Projeto de AppImage" 0 26
+
+    _text_box "Nome do Pacote" 86 2
+    _custom_read
+
+    _text_box "Nome do Binário" 86 4
+    _custom_read
+
+    dis_box=1
+    _text_box "Nível de Busca de Dependencias (padrão [ 1 ])" 86 5
+    echo -ne "\b\b "
+    read
+    dis_box=
+
+    _text_box "Dependencias Adicionais" 86 7
+    _custom_read
+
+    dis_box=1
+    _text_box "Nível de Busca de Dependencias Adicionais (padrão [ 1 ])" 86 8
+    echo -ne "\b\b "
+    read
+    dis_box=
+
+    dis_box=1
+    _text_box "Modo do AppImage (padrão [ 0 ])" 86 10
+    echo -ne "\b\b "
+    _text_box "[ 0 ] Default   [ 1 ] Junest   [ 2 ] bwrap   [ 3 ] proot" 86 11
+    echo -ne "\b\b "
+    read
+    dis_box=
+
+    dis_box=1
+    _text_box "Tipo do Conteiner (padrão [ 0 ])" 86 13
+    echo -ne "\b\b "
+    _text_box "[0] Def  [1] Multilib  [2] ChaoticAUR  [3] ArchLinuxCN  [4] AUR  [5] Custom" 86 14
+    echo -ne "\b\b "
+    read
+    dis_box=
+
+    _text_box "Nome Customizado" 86 16
+    _custom_read
+
+    dis_box=1
+    _text_box "Multipla Escolha" 86 17
+    echo -ne "\b\b "
+    _text_box "[ 0 ] Multilib  [ 1 ] ChaoticAUR  [ 2 ] ArchLinuxCN  [ 3 ] AUR" 80 18
+    echo -ne "\b\b "
+    read
+    dis_box=
+
+    dis_box=1
+    _text_box "Ativar Todos os Idiomas (padrão [ N ])? [ Y ] Sim  [ N ] Não  [ A ] Auto"  86 20
+    echo -ne "\b\b "
+    read
+    dis_box=
+
+    dis_box=1
+    _text_box "Criar AppImage de Imediato (padrão [ N ])? [ Y ] Sim   [ N ] Não" 86 22
+    echo -ne "\b\b "
+    read
+    dis_box=
+
+    printf "$rst"
+    clear
+}
+
+
+function __main
+{
+    cl=
+    rs=
+    start_x=
+    start_y=
+
+    _screen_bg
+    tput sc
+
+    _title "ArchAppImage - Empacotador de AppImage - Mauricio Ferrari [LinuxDicasPro]"
+
+    _screen_bg 60 15
+    _title "Bem-Vindo ao ArchAppImage" 0 15
+
+    text=(
+        "O 'ArchAppImage' é um Empacotador de AppImage"
+        "Baseado no Conteiner Junest Criado para Empacotar"
+        "AppImage com a Inclusão do 'GLibC'."
+        " "
+        "O objetivo é a Criação de AppImage Compatível"
+        "com a Maioria das Distros Linux e Facilidade na"
+        "Portabilidade de Programas para AppImage."
+    )
+
+    t2=( "[ENTER] Continuar   [ C ] Configurações   [ESC] Sair" )
+
+    sub=4
+    add=5
+    test $(( rows % 2 )) -eq 1 && {
+        sub=3
+        add=6
+    }
+
+    _center_text "${text[*]// /_}" 0 $sub
+    _center_text "${t2[*]// /_}" $add
+
+    tput rc
+    read -n 1 -s -r key
+    printf "$rst"
+    clear
+
+    case "$key" in
+    "C"|"c")
+        __config
+        ;;
+    $'\x1b')
+        exit 0
+        ;;
+    *)
+        __new_appimage
+        ;;
+    esac
+}
+
+clear
+__main
+exit 0
