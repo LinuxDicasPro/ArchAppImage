@@ -6,8 +6,6 @@
 #
 ###############################################################################
 
-# 86 26
-
 set -e
 
 printf "\e]2;ArchAppImage - Empacotador de AppImage\007"
@@ -21,7 +19,7 @@ rows=${LINES:-$(tput lines)}
 test $cols -lt 88 -o $rows -lt 28 && {
     printf '\033[8;30;90t'
     sleep 0.1
-    exec $0  # Sério. Se ajustar a resolução, temque abrir de novo.
+    exec $0  # Sério. Se ajustar a resolução, tem que abrir de novo.
     exit 0
 }
 
@@ -33,6 +31,7 @@ alt_blue="\e[1;38;5;7;48;5;18m"
 red="\e[1;38;5;7;48;5;160m"
 violet="\e[1;38;5;7;48;5;57m"
 box="\e[1;38;5;7;48;5;237m"
+green="\e[1;38;5;7;48;5;28m"
 
 TL="┌"  # Top Left
 TR="┐"  # Top Right
@@ -47,7 +46,21 @@ function _project_dir
     test -f $config_file || printf "PROJECT_DIR=$HOME/ArchAppImage\n" > $config_file
 
     : "$( grep "PROJECT_DIR" $config_file )"
-    printf ${_#*=}
+
+    project_dir="${_#*=}"
+
+    test -d $project_dir || {
+        mkdir -p "$HOME/ArchAppImage/tools"
+
+        for f in APP-ArchAppImage AppRun_bwrap AppRun_Conteiner AppRun_proot AppRun_Universal
+        {
+            test -f "$project_dir/tools/$f" || {
+                test -f "$CWD/tools/$f" && cp "$CWD/tools/$f" "$project_dir/tools"
+            }
+        }
+    }
+
+    printf $project_dir
 }
 
 
@@ -147,6 +160,7 @@ function _custom_read
     declare -r CHAR_LF=$'\n'
     declare -r CHAR_ESC=$'\e'
     declare -r CHAR_BS=$'\x7F'
+    DISRES=
     RES=
 
     test -z "$1" || RES="$1"
@@ -156,10 +170,14 @@ function _custom_read
         case "$CHAR" in
             "$CHAR_ESC")
                 RES=
+                DISRES=1
+                clear
                 break
                 ;;
             "$CHAR_LF")
-                break
+                test -z "$RES" -a -z "$dis_enter" || break
+                tput cup $start_y $start_z
+                continue
                 ;;
             "$CHAR_BS")
                 test -z $RES || {
@@ -180,16 +198,21 @@ function _text_box
 {
     start_x=$(( (cols - cl) / 2 + 2))
     start_y=$(( (rows - rs) / 2 + 2 + ${3:-0} ))
+    start_z=$(( $start_x + ${#1} + 2))
+
+    text=$1
+    text="${text//\[/$violet\[}"
+    text="${text//\]/\]$alt_blue}"
 
     tput cup $start_y $start_x
-    printf "${alt_blue}${1}:"
+    printf "${alt_blue}$text:"
 
-    tput cup $start_y $(( $start_x + ${#1} + 2))
+    tput cup $start_y $start_z
 
     test -z $dis_box || return 0
 
     printf "$box%$(( $2 - ${#1} - 6 ))s" ""
-    tput cup $start_y $(( $start_x + ${#1} + 2))
+    tput cup $start_y $start_z
 }
 
 
@@ -238,15 +261,53 @@ function __config
 
         for f in APP-ArchAppImage AppRun_bwrap AppRun_Conteiner AppRun_proot AppRun_Universal
         {
-            test -d "$RES/tools/$f" || {
-                test -e "$CWD/tools/$f" && cp "$CWD/tools/$f" "$RES/tools"
+            test -f "$RES/tools/$f" || {
+                test -f "$CWD/tools/$f" && cp "$CWD/tools/$f" "$RES/tools"
             }
         }
 
         sed -i "s|PROJECT_DIR=.*|PROJECT_DIR=$RES|" $config_file
     }
+}
 
-    __main
+function __apply_settings
+{
+    pdir="$( _project_dir )"
+    prg="$pdir/$package_name-ArchAppImage"
+
+    test -f "$prg" || cp -a "$pdir/tools/APP-ArchAppImage" "$prg"
+
+    sed -i "s/package_name=.*/package_name=\"$package_name\"/" $prg
+    sed -i "s/binary_name=.*/binary_name=\"$binary_name\"/" $prg
+    sed -i "s/level_search_deps=.*/level_search_deps=$dep_level/" $prg
+
+    test -z "$add_deps" || {
+        sed -i "s/dependences=.*/dependences=\"$add_deps\"/" $prg
+        sed -i "s/level_search_add_deps=.*/level_search_add_deps=$add_dep_level/" $prg
+    }
+
+    test $appimage_mode -eq 0 && sed -i "s/mode=.*/mode=\"default\"/" $prg || sed -i "s/mode=.*/mode=\"conteiner\"/" $prg
+    test $appimage_mode -eq 1 && sed -i "s/use_apprun_bwrap=.*/use_apprun_bwrap=0/" $prg
+    test $appimage_mode -eq 2 && sed -i "s/use_apprun_bwrap=.*/use_apprun_bwrap=1/" $prg
+    test $appimage_mode -eq 3 && sed -i "s/use_apprun_bwrap=.*/use_apprun_bwrap=2/" $prg
+
+    test $conteiner_type -eq 0 && sed -i "s/bootstrap_type=.*/bootstrap_type=/" $prg
+    test $conteiner_type -eq 1 && sed -i "s/bootstrap_type=.*/bootstrap_type=\"multilib\"/" $prg
+    test $conteiner_type -eq 2 && sed -i "s/bootstrap_type=.*/bootstrap_type=\"chaotic\"/" $prg
+    test $conteiner_type -eq 3 && sed -i "s/bootstrap_type=.*/bootstrap_type=\"archlinuxcn\"/" $prg
+    test $conteiner_type -eq 4 && sed -i "s/bootstrap_type=.*/bootstrap_type=\"aur\"/" $prg
+
+    test $conteiner_type -eq 5 && {
+        sed -i "s/custom_conteiner_name=.*/custom_conteiner_name=\"$custom_name\"/" $prg
+
+        sed -i "s/enable_multilib=.*/enable_multilib=$enable_multilib/" $prg
+        sed -i "s/enable_chaoticaur=.*/enable_chaoticaur=$enable_chaotic/" $prg
+        sed -i "s/enable_archlinuxcn=.*/enable_archlinuxcn=$enable_archlinuxcn/" $prg
+        sed -i "s/enable_build_aur=.*/enable_build_aur=$enable_aur/" $prg
+    }
+
+    sed -i "s/config_all_locales=.*/config_all_locales=$enable_lang/" $prg
+    sed -i "s/create_appimage=.*/create_appimage=$create_appimage/" $prg
 }
 
 
@@ -267,65 +328,238 @@ function __new_appimage
     _text_box "Nome do Pacote" 86 2
     _custom_read
 
+    test -z "$RES" && return 0
+    package_name="$RES"
+
     _text_box "Nome do Binário" 86 4
+    _custom_read "$package_name"
+
+    test -z "$RES" && return 0
+    binary_name="$RES"
+
+    dis_box=1
+    _text_box "Nível de Busca de Dependencias (1 a 9) --> Padrão 1" 86 5
+    echo -ne "\b\b "
+    read -N 1 -s res
+    dis_box=
+
+    case "$res" in
+    [1-9])
+        dep_level=$res
+        printf "$green[ $res ]$alt_blue"
+        ;;
+    $'\x1b')
+        clear
+        return 0
+        ;;
+    *)
+        dep_level=1
+        printf "$green[ 1 ]$alt_blue"
+        ;;
+    esac
+
+    num=7
+
+    _text_box "Dependencias Adicionais" 86 $num
+    dis_enter=1
     _custom_read
+    dis_enter=
 
+    test -z "$DISRES" || return 0
+    add_deps="$RES"
+
+    test -z "$add_deps" || {
+        num=$((num + 1))
+        dis_box=1
+        _text_box "Nível de Busca de Dependencias Adicionais (1 a 9) --> Padrão 1" 86 $num
+        echo -ne "\b\b "
+        read -N 1 -s res
+        dis_box=
+
+        case "$res" in
+        [1-9])
+            add_dep_level=$res
+            printf "$green[ $res ]$alt_blue"
+            ;;
+        $'\x1b')
+            clear
+            return 0
+            ;;
+        *)
+            add_dep_level=1
+            printf "$green[ 1 ]$alt_blue"
+            ;;
+        esac
+    }
+
+    num=$((num + 2))
     dis_box=1
-    _text_box "Nível de Busca de Dependencias (padrão [ 1 ])" 86 5
+    _text_box "Modo do AppImage --> Padrão 0" 86 $num
     echo -ne "\b\b "
-    read
+    num=$((num + 1))
+    _text_box "[ 0 ] Default   [ 1 ] Junest   [ 2 ] bwrap   [ 3 ] proot" 86 $num
+    echo -ne "\b\b "
+    read -N 1 -s res
     dis_box=
 
-    _text_box "Dependencias Adicionais" 86 7
-    _custom_read
+    case "$res" in
+    [0-3])
+        appimage_mode=$res
+        printf "$green[ $res ]$alt_blue"
+        ;;
+    $'\x1b')
+        clear
+        return 0
+        ;;
+    *)
+        appimage_mode=0
+        printf "$green[ 0 ]$alt_blue"
+        ;;
+    esac
 
     dis_box=1
-    _text_box "Nível de Busca de Dependencias Adicionais (padrão [ 1 ])" 86 8
+    num=$((num + 2))
+    _text_box "Tipo do Conteiner --> Padrão 0" 86 $num
     echo -ne "\b\b "
-    read
+    num=$((num + 1))
+    _text_box "[0] Def  [1] Multilib  [2] ChaoticAUR  [3] ArchLinuxCN  [4] AUR  [5] Custom" 86 $num
+    echo -ne "\b\b "
+    read -N 1 -s res
     dis_box=
+
+    case "$res" in
+    [0-5])
+        conteiner_type=$res
+        printf "$green[ $res ]$alt_blue"
+        ;;
+    $'\x1b')
+        clear
+        return 0
+        ;;
+    *)
+        conteiner_type=0
+        printf "$green[ 0 ]$alt_blue"
+        ;;
+    esac
+
+    test $conteiner_type -eq 5 && {
+        num=$((num + 2))
+        _text_box "Nome Customizado" 86 $num
+        _custom_read "$package_name"
+
+        test -z "$RES" && return 0
+        custom_name="$RES"
+
+        dis_box=1
+        num=$((num + 1))
+        _text_box "Multipla Escolha --> Padrão NENHUM" 86 $num
+        echo -ne "\b\b "
+        num=$((num + 1))
+        _text_box "[ 0 ] Multilib  [ 1 ] ChaoticAUR  [ 2 ] ArchLinuxCN  [ 3 ] AUR" 80 $num
+        echo -ne "\b\b "
+        dis_box=
+
+        enable_multilib=0
+        enable_chaotic=0
+        enable_archlinuxcn=0
+        enable_aur=0
+
+        while read -rN 1 -d "" -s res; do
+            case "$res" in
+            0)
+                test $enable_multilib -eq 0 && enable_multilib=1 || enable_multilib=0
+                ;;
+            1)
+                test $enable_chaotic -eq 0 && enable_chaotic=1 || enable_chaotic=0
+                ;;
+            2)
+                test $enable_archlinuxcn -eq 0 && enable_archlinuxcn=1 || enable_archlinuxcn=0
+                ;;
+            3)
+                test $enable_aur -eq 0 && enable_aur=1 || enable_aur=0
+                ;;
+            $'\x1b')
+                clear
+                return 0
+                ;;
+            $'\n')
+                break
+                ;;
+            *)
+                ;;
+            esac
+
+            tput cup $start_y $start_z
+            printf "\b"
+
+            for i in {1..16}
+            {
+                printf " "
+            }
+
+            tput cup $start_y $start_z
+
+            printf "\b\
+$(test $enable_multilib -eq 1 && printf "$green[0]$alt_blue ")\
+$(test $enable_chaotic -eq 1 && printf "$green[1]$alt_blue ")\
+$(test $enable_archlinuxcn -eq 1 && printf "$green[2]$alt_blue ")\
+$(test $enable_aur -eq 1 && printf "$green[3]$alt_blue")"
+
+        done
+    }
 
     dis_box=1
-    _text_box "Modo do AppImage (padrão [ 0 ])" 86 10
+    num=$((num + 2))
+    _text_box "Ativar Todos os Idiomas? --> Padrão N  [ Y ] Sim  [ N ] Não  [ A ] Auto"  86 $num
     echo -ne "\b\b "
-    _text_box "[ 0 ] Default   [ 1 ] Junest   [ 2 ] bwrap   [ 3 ] proot" 86 11
-    echo -ne "\b\b "
-    read
+    read -N 1 -s res
     dis_box=
+
+    case "$res" in
+    [yY])
+        enable_lang=1
+        printf "$green[ Y ]$alt_blue"
+        ;;
+    [aA])
+        enable_lang=2
+        printf "$green[ A ]$alt_blue"
+        ;;
+    $'\x1b')
+        return 0
+        ;;
+    *)
+        enable_lang=0
+        printf "$red[ N ]$alt_blue"
+        ;;
+    esac
 
     dis_box=1
-    _text_box "Tipo do Conteiner (padrão [ 0 ])" 86 13
+    num=$((num + 2))
+    _text_box "Criar AppImage de Imediato? --> Padrão N  [ Y ] Sim   [ N ] Não" 86 $num
     echo -ne "\b\b "
-    _text_box "[0] Def  [1] Multilib  [2] ChaoticAUR  [3] ArchLinuxCN  [4] AUR  [5] Custom" 86 14
-    echo -ne "\b\b "
-    read
+    read -N 1 -s res
     dis_box=
 
-    _text_box "Nome Customizado" 86 16
-    _custom_read
+    case "$res" in
+    [yY])
+        create_appimage=1
+        printf "$green[ Y ]$alt_blue"
+        ;;
+    $'\x1b')
+        return 0
+        ;;
+    *)
+        create_appimage=0
+        printf "$red[ N ]$alt_blue"
+        ;;
+    esac
 
-    dis_box=1
-    _text_box "Multipla Escolha" 86 17
-    echo -ne "\b\b "
-    _text_box "[ 0 ] Multilib  [ 1 ] ChaoticAUR  [ 2 ] ArchLinuxCN  [ 3 ] AUR" 80 18
-    echo -ne "\b\b "
+    printf " $violet[Concluído]"
     read
-    dis_box=
-
-    dis_box=1
-    _text_box "Ativar Todos os Idiomas (padrão [ N ])? [ Y ] Sim  [ N ] Não  [ A ] Auto"  86 20
-    echo -ne "\b\b "
-    read
-    dis_box=
-
-    dis_box=1
-    _text_box "Criar AppImage de Imediato (padrão [ N ])? [ Y ] Sim   [ N ] Não" 86 22
-    echo -ne "\b\b "
-    read
-    dis_box=
-
     printf "$rst"
     clear
+
+    __apply_settings
 }
 
 
@@ -385,5 +619,8 @@ function __main
 }
 
 clear
-__main
+while :; do
+    __main
+done
+
 exit 0

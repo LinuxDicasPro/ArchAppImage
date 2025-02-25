@@ -111,6 +111,7 @@ consulte a documentação oficial:
 <p align="center">
   <img src="preview/1.png">  
   <img src="preview/2.png">
+  <img src="preview/3.png">
 </p>
 
 ## 📝 Próximas Implementações
@@ -181,8 +182,8 @@ o texto completo da licença no site da Free Software Foundation:
 ## 📩 Contato
 
 - 📧 Email: contatolinuxdicaspro@gmail.com
-- 💬 **Telegram:** [@seuTelegram](https://t.me/seuTelegram)  
-- ▶️ **YouTube:** [Seu Canal](https://youtube.com/seuCanal)  
-- 👥 **Reddit:** [r/seuSubreddit](https://www.reddit.com/r/seuSubreddit)
+- 💬 **Telegram:** [LinuxDicasPro](https://t.me/LinuxDicasPro)  
+- ▶️ **YouTube:** [LinuxDicasPro](https://www.youtube.com/@LinuxDicasPro)  
+- 👥 **Reddit:** [r/LinuxDicasPro](https://www.reddit.com/r/LinuxDicasPro/)
 
 

@@ -16,7 +16,7 @@ set -e
 
 package_name=
 binary_name=   # optional
-dependencies=  # optional
+dependences=  # optional
 
 use_font="noto-fonts"
 # use_font="gnu-free-fonts"
@@ -24,8 +24,8 @@ use_font="noto-fonts"
 use_lib_browser_launcher=0  # 0 (false) or 1 (true)
 use_lib_audio_keywords=0    # 0 (false) or 1 (true)
 
-level_search_deps=1      # auto detect dependencies 1 - 2 - 3 ...
-level_search_add_deps=1  # detect add dependencies 1 - 2 - 3 ...
+level_search_deps=1      # auto detect dependences 1 - 2 - 3 ...
+level_search_add_deps=1  # detect add dependences 1 - 2 - 3 ...
 
 mode="default"  # default - conteiner
 
@@ -65,8 +65,6 @@ remove_others_bins_bloatwares=   # optional - "bin1|bin2|bin3"
 remove_others_etc_bloatwares=    # optional - "dir1|dir2|file"
 
 config_all_locales=0  # mode conteiner: 0 (false) - 1 (true) - 2 (autodetect)
-
-use_gtk_essentials_deps=0  # mode conteiner: 0 (false) or 1 (true)
 
 noupdate=0           # 0 (false) or 1 (true)
 no_save_bins=0       # 0 (false) or 1 (true)
@@ -352,11 +350,11 @@ test -d "$conteiner_rootfs" || {
 
 test $noupdate = 1 || _junest_update
 
-"$junest" -- bash -c "$pacman --noconfirm -S $package_name $dependencies"
+"$junest" -- bash -c "$pacman --noconfirm -S $package_name $dependences"
 "$junest" -f -- bash -c "glib-compile-schemas /usr/share/glib-2.0/schemas/"
 
 
-# ### EXTRACT AUTO DEPENDENCIES ### #############################################################################################
+# ### EXTRACT AUTO DEPENDENCES ### #############################################################################################
 
 
 remove_share_bloatwares="share/(cmake|man|licenses|doc|locale|info|gtk-doc|zoneinfo|pkgconfig${remove_others_share_bloatwares:+"|$remove_others_share_bloatwares"})"
@@ -374,11 +372,11 @@ list_files=$( awk '{print $2}' <( grep -Ev \
 )))
 
 
-# ### EXTRACT MANUAL DEPENDENCIES ### ###########################################################################################
+# ### EXTRACT MANUAL DEPENDENCES ### ###########################################################################################
 
 
-test -z "$dependencies" || {
-    for dep in $dependencies
+test -z "$dependences" || {
+    for dep in $dependences
     {
         find_add_deps=( ${find_add_deps[*]} $("$junest" -- bash -c "pactree -d $level_search_add_deps -u $dep") )
     }
@@ -396,10 +394,9 @@ test -z "$dependencies" || {
 
 
 test "$mode" = "default" || {
-    test $use_gtk_essentials_deps -eq 0 || gtk_essentials_deps="gtk3 gdk-pixbuf2"
     test $use_lib_browser_launcher -eq 0 || xapp="xapp"
 
-    essentials_deps="glibc glib2 gzip shared-mime-info hicolor-icon-theme $gtk_essentials_deps $xapp"
+    essentials_deps="glibc glib2 gzip shared-mime-info hicolor-icon-theme $xapp"
 
     for dep in $essentials_deps
     {
@@ -415,7 +412,7 @@ test "$mode" = "default" || {
 }
 
 
-# ### EXTRACT DEPENDENCIES LDD ### ##############################################################################################
+# ### EXTRACT DEPENDENCES LDD ### ##############################################################################################
 
 
 test $use_ldd_search -eq 0 || {
@@ -461,7 +458,7 @@ grep "libgdk_pixbuf-2.0.so" <<< "$all_files" && {
 all_files="$( sort -u <<< "$all_files" )"
 
 
-# ### COPY DEPENDENCIES ### #####################################################################################################
+# ### COPY DEPENDENCES ### #####################################################################################################
 
 
 test $recreate_appdir -eq 0 || {
@@ -517,7 +514,7 @@ test "$mode" = "default" || {
 }
 
 
-# ### COPY SAVED DEPENDENCIES ### ###############################################################################################
+# ### COPY SAVED DEPENDENCES ### ###############################################################################################
 
 
 lib_browser_launcher="gio-launch-desktop libasound.so libatk-bridge libatspi libcloudproviders libdb- libdl.so libedit libepoxy \
