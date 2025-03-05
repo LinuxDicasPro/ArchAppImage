@@ -16,8 +16,8 @@ CWD=${_%/*}
 cols=${COLUMNS:-$(tput cols)}
 rows=${LINES:-$(tput lines)}
 
-test $cols -lt 88 -o $rows -lt 28 && {
-    printf '\033[8;30;90t'
+test $cols -lt 90 -o $rows -lt 30 && {
+    printf '\033[8;32;94t'
     sleep 0.1
     exec $0  # Sério. Se ajustar a resolução, tem que abrir de novo.
     exit 0
@@ -39,6 +39,8 @@ BL="└"  # Bottom Left
 BR="┘"  # Bottom Right
 H="─"   # Horizontal
 V="│"   # Vertical
+
+# declare -i text_size=0
 
 
 function _project_dir
@@ -66,7 +68,8 @@ function _project_dir
 
 function _top_border
 {
-    cl=${1:-$cols}
+    declare -i cl=${1:-$cols}
+
     color="$blue"
 
     test -z "$2" || {
@@ -85,8 +88,8 @@ function _top_border
 
 function _vertical_border_background
 {
-    cl=${1:-$cols}
-    rs=${2:-$rows}
+    declare -i cl=${1:-$cols}
+    declare -i rs=${2:-$rows}
 
     for ((y = 2; y < rs; y++))
     {
@@ -98,7 +101,7 @@ function _vertical_border_background
 
 function _bottom_border
 {
-    cl=${1:-$cols}
+    declare -i cl=${1:-$cols}
 
     test -z "$3" || tput cup $(($3 + $2)) $4
 
@@ -115,12 +118,13 @@ function _title
 {
     msg=${1:-"sample title"}
     text_length=${#msg}
-    text_x=$(( (${cols} - text_length) / 2 ))
     color="$blue"
 
-    y=${2:-1}
+    declare -i text_x=(cols-text_length)/2
+    declare -i y=${2:-1}
+
     test $y -eq 0 && {
-        y=$(( (rows - $3) / 2 + 2))
+        y=(rows-$3)/2+2
         color="$alt_blue"
     }
 
@@ -132,14 +136,14 @@ function _title
 function _center_text
 {
     centertext=( $1 )
-    i=${2:-0}
-    y=${3:-0}
+    declare -i i=${2:-0}
+    declare -i y=${3:-0}
 
     for text in "${centertext[@]//_/ }"
     {
-        cp=${#text}
-        pos_x=$(( (cols - cp) / 2 ))
-        pos_y=$(( (rows / 2) - $y + i ))
+        declare -i cp=${#text}
+        declare -i pos_x=(cols-cp)/2
+        declare -i pos_y=(rows/2)-y+i
 
         cap="${text#*\'}"
         cap="${cap%\'*}"
@@ -150,7 +154,7 @@ function _center_text
 
         tput cup $pos_y $pos_x
         printf "$text\n"
-        i=$((i + 1))
+        i+=1
     }
 }
 
@@ -165,10 +169,18 @@ function _custom_read
 
     test -z "$1" || RES="$1"
     printf "$RES"
+    tput sc
 
     while read -rN 1 -d "" CHAR; do
         case "$CHAR" in
             "$CHAR_ESC")
+                IFS= read -t 0.0001 -r -n 2 -s rest || true
+                test -z "$rest" || {
+                    tput rc
+                    printf '    '
+                    tput rc
+                    continue
+                }
                 RES=
                 DISRES=1
                 clear
@@ -176,32 +188,39 @@ function _custom_read
                 ;;
             "$CHAR_LF")
                 test -z "$RES" -a -z "$dis_enter" || break
-                tput cup $start_y $start_z
+                tput rc
                 continue
                 ;;
             "$CHAR_BS")
+                tput rc
+                printf '  '
+                tput rc
                 test -z $RES || {
                     RES="${RES::-1}"
                     echo -ne "\b \b"
                 }
-                echo -ne "\b\b  \b\b"
                 ;;
             *)
                 RES+="${CHAR}"
                 ;;
         esac
+        tput sc
     done
+
 }
 
 
 function _text_box
 {
-    start_x=$(( (cols - cl) / 2 + 2))
-    start_y=$(( (rows - rs) / 2 + 2 + ${3:-0} ))
-    start_z=$(( $start_x + ${#1} + 2))
+#     text_size=${#1}
+    color=${textcolor:-$violet}
+
+    declare -i start_x=(cols-cl)/2+2
+    declare -i start_y=(rows-rs)/2+2+${3:-0}
+    declare -i start_z=start_x+${#1}+2
 
     text=$1
-    text="${text//\[/$violet\[}"
+    text="${text//\[/$color\[}"
     text="${text//\]/\]$alt_blue}"
 
     tput cup $start_y $start_x
@@ -212,7 +231,7 @@ function _text_box
     test -z $dis_box || return 0
 
     printf "$box%$(( $2 - ${#1} - 6 ))s" ""
-    tput cup $start_y $start_z
+    tput cup $start_y $(( start_z + 1 ))
 }
 
 
@@ -222,8 +241,8 @@ function _screen_bg
     rs=${2:-$rows}
 
     test -z "$1" || {
-        start_x=$(( (cols - cl) / 2 ))
-        start_y=$(( (rows - rs) / 2 ))
+        declare -i start_x=(cols-cl)/2
+        declare -i start_y=(rows-rs)/2
     }
 
     _top_border $cl $start_y $start_x
@@ -238,8 +257,6 @@ function __config
 {
     cl=
     rs=
-    start_x=
-    start_y=
 
     _screen_bg
 
@@ -315,30 +332,28 @@ function __new_appimage
 {
     cl=
     rs=
-    start_x=
-    start_y=
 
     _screen_bg
 
     _title "ArchAppImage - Empacotador de AppImage - Novo Projeto"
 
-    _screen_bg 86 26
-    _title "Novo Projeto de AppImage" 0 26
+    _screen_bg 90 28
+    _title "Novo Projeto de AppImage" 0 28
 
-    _text_box "Nome do Pacote" 86 2
+    _text_box "Nome do Pacote" 90 2
     _custom_read
 
     test -z "$RES" && return 0
     package_name="$RES"
 
-    _text_box "Nome do Binário" 86 4
+    _text_box "Nome do Executável Binário" 90 4
     _custom_read "$package_name"
 
     test -z "$RES" && return 0
     binary_name="$RES"
 
     dis_box=1
-    _text_box "Nível de Busca de Dependencias (1 a 9) --> Padrão 1" 86 5
+    _text_box "Nível de Busca de Dependencias (1-9) def.1 -->" 90 6
     echo -ne "\b\b "
     read -N 1 -s res
     dis_box=
@@ -358,9 +373,9 @@ function __new_appimage
         ;;
     esac
 
-    num=7
+    declare -i num=8
 
-    _text_box "Dependencias Adicionais" 86 $num
+    _text_box "Dependencias Adicionais" 90 $num
     dis_enter=1
     _custom_read
     dis_enter=
@@ -369,9 +384,9 @@ function __new_appimage
     add_deps="$RES"
 
     test -z "$add_deps" || {
-        num=$((num + 1))
+        num+=2
         dis_box=1
-        _text_box "Nível de Busca de Dependencias Adicionais (1 a 9) --> Padrão 1" 86 $num
+        _text_box "Nível de Busca de Dependencias Adicionais (1-9) def.1 --> " 90 $num
         echo -ne "\b\b "
         read -N 1 -s res
         dis_box=
@@ -392,20 +407,29 @@ function __new_appimage
         esac
     }
 
-    num=$((num + 2))
+    num+=2
     dis_box=1
-    _text_box "Modo do AppImage --> Padrão 0" 86 $num
-    echo -ne "\b\b "
-    num=$((num + 1))
-    _text_box "[ 0 ] Default   [ 1 ] Junest   [ 2 ] bwrap   [ 3 ] proot" 86 $num
+    _text_box "AppRun(def.0): [ 0 ] Default      [ 1 ] Junest       [ 2 ] bwrap        [ 3 ] proot" 90 $num
     echo -ne "\b\b "
     read -N 1 -s res
     dis_box=
+    r=69
 
     case "$res" in
-    [0-3])
+    0)
         appimage_mode=$res
-        printf "$green[ $res ]$alt_blue"
+        ;;
+    1)
+        appimage_mode=$res
+        r=50
+        ;;
+    2)
+        appimage_mode=$res
+        r=31
+        ;;
+    3)
+        appimage_mode=$res
+        r=12
         ;;
     $'\x1b')
         clear
@@ -413,24 +437,51 @@ function __new_appimage
         ;;
     *)
         appimage_mode=0
-        printf "$green[ 0 ]$alt_blue"
+        res=0
         ;;
     esac
 
+    tput cub $r
+    printf "$green[ $res ]$alt_blue"
+
     dis_box=1
-    num=$((num + 2))
-    _text_box "Tipo do Conteiner --> Padrão 0" 86 $num
+    num+=2
+    _text_box "Tipo(def.0):   [ 0 ] Default      [ 1 ] Multilib     [ 2 ] ChaoticAUR " 90 $num
     echo -ne "\b\b "
-    num=$((num + 1))
-    _text_box "[0] Def  [1] Multilib  [2] ChaoticAUR  [3] ArchLinuxCN  [4] AUR  [5] Custom" 86 $num
+    num+=1
+    _text_box "               [ 3 ] ArchLinuxCN  [ 4 ] AUR          [ 5 ] Custom" 90 $num
     echo -ne "\b\b "
     read -N 1 -s res
     dis_box=
+    old=0
+    r=51
 
     case "$res" in
-    [0-5])
+    0)
         conteiner_type=$res
-        printf "$green[ $res ]$alt_blue"
+        old=1
+        ;;
+    1)
+        conteiner_type=$res
+        old=1
+        r=32
+        ;;
+    2)
+        conteiner_type=$res
+        old=1
+        r=13
+        ;;
+    3)
+        conteiner_type=$res
+        r=51
+        ;;
+    4)
+        conteiner_type=$res
+        r=32
+        ;;
+    5)
+        conteiner_type=$res
+        r=13
         ;;
     $'\x1b')
         clear
@@ -438,45 +489,79 @@ function __new_appimage
         ;;
     *)
         conteiner_type=0
-        printf "$green[ 0 ]$alt_blue"
+        old=1
+        res=0
         ;;
     esac
 
+    test $old -eq 1 && tput cuu1
+    tput cub $r
+
+    printf "$green[ $res ]$alt_blue"
+
     test $conteiner_type -eq 5 && {
-        num=$((num + 2))
-        _text_box "Nome Customizado" 86 $num
+        num+=2
+        _text_box "Nome Customizado" 90 $num
         _custom_read "$package_name"
 
         test -z "$RES" && return 0
         custom_name="$RES"
 
+        textcolor="$red"
         dis_box=1
-        num=$((num + 1))
-        _text_box "Multipla Escolha --> Padrão NENHUM" 86 $num
-        echo -ne "\b\b "
-        num=$((num + 1))
-        _text_box "[ 0 ] Multilib  [ 1 ] ChaoticAUR  [ 2 ] ArchLinuxCN  [ 3 ] AUR" 80 $num
+        num+=2
+        _text_box "Opções -->     [ 0 ] Multilib     [ 1 ] ChaoticAUR   [ 2 ] ArchLinuxCN  [ 3 ] AUR" 90 $num
         echo -ne "\b\b "
         dis_box=
+        textcolor=
 
         enable_multilib=0
         enable_chaotic=0
         enable_archlinuxcn=0
         enable_aur=0
+        r=68
 
         while read -rN 1 -d "" -s res; do
             case "$res" in
             0)
-                test $enable_multilib -eq 0 && enable_multilib=1 || enable_multilib=0
+                test $enable_multilib -eq 0 && {
+                    enable_multilib=1
+                    color="$green"
+                } || {
+                    enable_multilib=0
+                    color="$red"
+                }
+                r=68
                 ;;
             1)
-                test $enable_chaotic -eq 0 && enable_chaotic=1 || enable_chaotic=0
+                test $enable_chaotic -eq 0 && {
+                    enable_chaotic=1
+                    color="$green"
+                } || {
+                    enable_chaotic=0
+                    color="$red"
+                }
+                r=48
                 ;;
             2)
-                test $enable_archlinuxcn -eq 0 && enable_archlinuxcn=1 || enable_archlinuxcn=0
+                test $enable_archlinuxcn -eq 0 && {
+                    enable_archlinuxcn=1
+                    color="$green"
+                } || {
+                    enable_archlinuxcn=0
+                    color="$red"
+                }
+                r=29
                 ;;
             3)
-                test $enable_aur -eq 0 && enable_aur=1 || enable_aur=0
+                test $enable_aur -eq 0 && {
+                    enable_aur=1
+                    color="$green"
+                } || {
+                    enable_aur=0
+                    color="$red"
+                }
+                r=10
                 ;;
             $'\x1b')
                 clear
@@ -486,31 +571,22 @@ function __new_appimage
                 break
                 ;;
             *)
+                continue
                 ;;
             esac
 
-            tput cup $start_y $start_z
-            printf "\b"
+            tput sc
+            tput cub $r
 
-            for i in {1..16}
-            {
-                printf " "
-            }
+            printf "$color[ $res ]$alt_blue "
 
-            tput cup $start_y $start_z
-
-            printf "\b\
-$(test $enable_multilib -eq 1 && printf "$green[0]$alt_blue ")\
-$(test $enable_chaotic -eq 1 && printf "$green[1]$alt_blue ")\
-$(test $enable_archlinuxcn -eq 1 && printf "$green[2]$alt_blue ")\
-$(test $enable_aur -eq 1 && printf "$green[3]$alt_blue")"
-
+            tput rc
         done
     }
 
     dis_box=1
-    num=$((num + 2))
-    _text_box "Ativar Todos os Idiomas? --> Padrão N  [ Y ] Sim  [ N ] Não  [ A ] Auto"  86 $num
+    num+=2
+    _text_box "Ativar Todos os Idiomas? (def.N) -->     [ Y ] Sim   [ N ] Não   [ A ] Auto"  90 $num
     echo -ne "\b\b "
     read -N 1 -s res
     dis_box=
@@ -518,24 +594,28 @@ $(test $enable_aur -eq 1 && printf "$green[3]$alt_blue")"
     case "$res" in
     [yY])
         enable_lang=1
+        tput cub 35
         printf "$green[ Y ]$alt_blue"
         ;;
     [aA])
         enable_lang=2
+        tput cub 11
         printf "$green[ A ]$alt_blue"
         ;;
     $'\x1b')
+        clear
         return 0
         ;;
     *)
         enable_lang=0
+        tput cub 23
         printf "$red[ N ]$alt_blue"
         ;;
     esac
 
     dis_box=1
-    num=$((num + 2))
-    _text_box "Criar AppImage de Imediato? --> Padrão N  [ Y ] Sim   [ N ] Não" 86 $num
+    num+=2
+    _text_box "Criar AppImage de Imediato? (def.N) -->  [ Y ] Sim   [ N ] Não" 90 $num
     echo -ne "\b\b "
     read -N 1 -s res
     dis_box=
@@ -543,19 +623,28 @@ $(test $enable_aur -eq 1 && printf "$green[3]$alt_blue")"
     case "$res" in
     [yY])
         create_appimage=1
+        tput cub 22
         printf "$green[ Y ]$alt_blue"
         ;;
     $'\x1b')
+        clear
         return 0
         ;;
     *)
         create_appimage=0
+        tput cub 10
         printf "$red[ N ]$alt_blue"
         ;;
     esac
 
-    printf " $violet[Concluído]"
-    read
+    textcolor="$green"
+    dis_box=1
+    num+=2
+    _text_box "[ Concluído - ENTER para Continuar ]" 90 $num
+    dis_box=
+    textcolor=
+    echo -ne "\b\b "
+    read -N1
     printf "$rst"
     clear
 
@@ -567,8 +656,6 @@ function __main
 {
     cl=
     rs=
-    start_x=
-    start_y=
 
     _screen_bg
     tput sc

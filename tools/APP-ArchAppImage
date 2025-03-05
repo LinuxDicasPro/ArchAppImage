@@ -69,6 +69,7 @@ config_all_locales=0  # mode conteiner: 0 (false) - 1 (true) - 2 (autodetect)
 noupdate=0           # 0 (false) or 1 (true)
 no_save_bins=0       # 0 (false) or 1 (true)
 use_ldd_search=0     # 0 (false) or 1 (true)
+check_rm_python=0    # 0 (false) or 1 (true)
 recreate_appdir=0    # 0 (false) or 1 (true)
 create_appimage=0    # 0 (false) or 1 (true)
 
@@ -180,7 +181,21 @@ test -f "$tool_dirs/runtime" || wget -q --show-progress -O "$tool_dirs/runtime" 
 
 function _extra_config
 {
-    true  # add extra configs
+
+    # ADD EXTRA CONFIG
+
+    test $check_rm_python -eq 0 || {
+        shopt -s failglob
+        ( echo "$appdir"/usr/bin/python* ) || {
+            shopt -u failglob
+            rm -rvf "$appdir"/usr/lib/python*
+            test "$mode" = "default" && {
+                sed -i "s|export PYTHONPATH|#export PYTHONPATH|" "$appdir/AppRun"
+                sed -i "s|export PYTHONHOME|#export PYTHONHOME|" "$appdir/AppRun"
+            }
+        }
+        shopt -u failglob
+    }
 }
 
 

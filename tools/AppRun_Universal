@@ -199,7 +199,9 @@ export LIBRARY_PATH=${LIBRARY_PATH}:"$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-l
 
 export QT_PLUGIN_PATH="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}qt${qt_version:-*}/{,plugins/{,*/}}); echo "${i[*]}")"
 
-export PYTHONPATH="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}python3.*/{,site-packages/*/,*/}); echo "${i[*]}")"
+#SYSTEMPYTHONPATH="$(i=(/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}python3.*/{,site-packages/*/,*/}); echo "${i[*]%/}")"
+
+export PYTHONPATH="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}python3.*/{,site-packages/*/,*/}); echo "${i[*]%/}")${SYSTEMPYTHONPATH:+":$SYSTEMPYTHONPATH"}"
 export PYTHONHOME="$APPDIR/usr"
 
 export PERL5LIB="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}perl{,5,-base}/{,*5.*/,*/}{,*/{,*/{,*/{,*/}}}}); echo "${i[*]}")"
