@@ -1,0 +1,373 @@
+#!/bin/bash
+#
+# Configuration Script for ArchAppImage
+#
+# By Mauricio Ferrari
+#
+###############################################################################
+
+set -e
+
+printf "\e]2;ArchAppImage - Empacotador de AppImage\007"
+
+: "$(readlink -f "$0")"
+CWD=${_%/*}
+
+config_file=~/.config/ArchAppImage.conf
+
+cols=${COLUMNS:-$(tput cols)}
+rows=${LINES:-$(tput lines)}
+
+rst="\e[0m"
+alt_blue="\e[1;38;5;7;48;5;18m"
+
+
+function _custom_read
+{
+    declare -r CHAR_LF=$'\n'
+    declare -r CHAR_ESC=$'\e'
+    declare -r CHAR_BS=$'\x7F'
+    DISRES=
+    RES=
+
+    test -z "$1" || printf "\n$1"
+    tput sc
+
+    test -z "$2" || RES="$2"
+    printf "$RES"
+
+    while read -rN 1 -d "" CHAR; do
+        case "$CHAR" in
+            "$CHAR_ESC")
+                RES=
+                DISRES=1
+                clear
+                break
+                ;;
+            "$CHAR_LF")
+                test -z "$RES" -a -z "$dis_enter" || break
+                tput rc
+                continue
+                ;;
+            "$CHAR_BS")
+                test -z $RES || {
+                    RES="${RES::-1}"
+                    echo -ne "\b \b"
+                }
+                echo -ne "\b\b  \b\b"
+                ;;
+            *)
+                RES+="${CHAR}"
+                ;;
+        esac
+    done
+}
+
+
+function _project_dir
+{
+    test -f $config_file || printf "PROJECT_DIR=$HOME/ArchAppImage\n" > $config_file
+
+    : "$( grep "PROJECT_DIR" $config_file )"
+
+    project_dir="${_#*=}"
+
+    test -d $project_dir || {
+        mkdir -p "$HOME/ArchAppImage/tools"
+
+        for f in APP-ArchAppImage AppRun_bwrap AppRun_Conteiner AppRun_proot AppRun_Universal
+        {
+            test -f "$project_dir/tools/$f" || {
+                test -f "$CWD/tools/$f" && cp "$CWD/tools/$f" "$project_dir/tools"
+            }
+        }
+    }
+
+    printf $project_dir
+}
+
+
+function __apply_settings
+{
+    pdir="$( _project_dir )"
+    prg="$pdir/$package_name-ArchAppImage"
+
+    test -f "$prg" || cp -a "$pdir/tools/APP-ArchAppImage" "$prg"
+
+    sed -i "s/package_name=.*/package_name=\"$package_name\"/" $prg
+    sed -i "s/binary_name=.*/binary_name=\"$binary_name\"/" $prg
+    sed -i "s/level_search_deps=.*/level_search_deps=$dep_level/" $prg
+
+    test -z "$add_deps" || {
+        sed -i "s/dependences=.*/dependences=\"$add_deps\"/" $prg
+        sed -i "s/level_search_add_deps=.*/level_search_add_deps=$add_dep_level/" $prg
+    }
+
+    test $appimage_mode -eq 0 && sed -i "s/mode=.*/mode=\"default\"/" $prg || sed -i "s/mode=.*/mode=\"conteiner\"/" $prg
+    test $appimage_mode -eq 1 && sed -i "s/use_apprun_bwrap=.*/use_apprun_bwrap=0/" $prg
+    test $appimage_mode -eq 2 && sed -i "s/use_apprun_bwrap=.*/use_apprun_bwrap=1/" $prg
+    test $appimage_mode -eq 3 && sed -i "s/use_apprun_bwrap=.*/use_apprun_bwrap=2/" $prg
+
+    test $conteiner_type -eq 0 && sed -i "s/bootstrap_type=.*/bootstrap_type=/" $prg
+    test $conteiner_type -eq 1 && sed -i "s/bootstrap_type=.*/bootstrap_type=\"multilib\"/" $prg
+    test $conteiner_type -eq 2 && sed -i "s/bootstrap_type=.*/bootstrap_type=\"chaotic\"/" $prg
+    test $conteiner_type -eq 3 && sed -i "s/bootstrap_type=.*/bootstrap_type=\"archlinuxcn\"/" $prg
+    test $conteiner_type -eq 4 && sed -i "s/bootstrap_type=.*/bootstrap_type=\"aur\"/" $prg
+
+    test $conteiner_type -eq 5 && {
+        sed -i "s/custom_conteiner_name=.*/custom_conteiner_name=\"$custom_name\"/" $prg
+
+        sed -i "s/enable_multilib=.*/enable_multilib=$enable_multilib/" $prg
+        sed -i "s/enable_chaoticaur=.*/enable_chaoticaur=$enable_chaotic/" $prg
+        sed -i "s/enable_archlinuxcn=.*/enable_archlinuxcn=$enable_archlinuxcn/" $prg
+        sed -i "s/enable_build_aur=.*/enable_build_aur=$enable_aur/" $prg
+    }
+
+    sed -i "s/config_all_locales=.*/config_all_locales=$enable_lang/" $prg
+    sed -i "s/create_appimage=.*/create_appimage=$create_appimage/" $prg
+}
+
+
+function __config
+{
+    _custom_read "Project Folder: " "$( _project_dir )"
+
+    test -z "$RES" && exit 0
+}
+
+clear
+
+read -sN 1 -p "
+ArchAppImage - Empacotador de AppImage - Mauricio Ferrari [LinuxDicasPro]
+
+[ENTER] Continue   [ C ] Config   [ESC] Exit
+" res
+
+case "$res" in
+    "C"|"c")
+        __config
+        ;;
+    $'\x1b')
+        clear
+        exit 0
+        ;;
+    *)
+        ;;
+esac
+
+_custom_read "Package Name: "
+
+test -z "$RES" && exit 0
+package_name="$RES"
+
+_custom_read "Binary Name: " "$package_name"
+
+test -z "$RES" && exit 0
+binary_name="$RES"
+
+tput sc
+read -N 1 -p "
+Nível de Busca de Dependencias (1-9) def.1: " res
+
+case "$res" in
+    [0-9])
+        dep_level=$res
+        ;;
+    $'\x1b')
+        clear
+        exit 0
+        ;;
+    *)
+        tput rc
+        printf "\n"
+        tput cuf 44
+        printf "1"
+        dep_level=1
+        ;;
+esac
+
+dis_enter=1
+_custom_read "
+Dependencias Adicionais: "
+dis_enter=
+
+test -z "$DISRES" || exit 0
+add_deps="$RES"
+
+test -z "$add_deps" || {
+
+    tput sc
+    read -N 1 -p "
+Nível de Busca de Dependencias Adicionais (1-9) def.1: " res
+
+    case "$res" in
+        [0-9])
+            add_dep_level=$res
+            ;;
+        $'\x1b')
+            clear
+            exit 0
+            ;;
+        *)
+            tput rc
+            printf "\n"
+            tput cuf 55
+            printf "1"
+            add_dep_level=1
+            ;;
+    esac
+
+}
+
+printf "\n"
+tput sc
+read -N 1 -p "
+AppRun (def.0):        [ 0 ] Default      [ 1 ] Junest      [ 2 ] bwrap        [ 3 ] proot : " res
+
+case "$res" in
+    [0-3])
+        appimage_mode=$res
+        ;;
+    $'\x1b')
+        clear
+        exit 0
+        ;;
+    *)
+        tput rc
+        printf "\n"
+        tput cuf 93
+        printf "0"
+        appimage_mode=0
+        ;;
+esac
+
+printf "\n"
+tput sc
+read -N 1 -p "
+Conteiner Type(def.0): [ 0 ] Default      [ 1 ] Multilib    [ 2 ] ChaoticAUR
+                       [ 3 ] ArchLinuxCN  [ 4 ] AUR         [ 5 ] Custom : " res
+
+case "$res" in
+    [0-5])
+        conteiner_type=$res
+        ;;
+    $'\x1b')
+        clear
+        exit 0
+        ;;
+    *)
+        tput rc
+        printf "\n\n"
+        tput cuf 75
+        printf "0"
+        conteiner_type=0
+        ;;
+esac
+
+test $conteiner_type -eq 5 && {
+    _custom_read "
+Nome Customizado: " "$package_name"
+
+    test -z "$RES" && exit 0
+    custom_name="$RES"
+
+    tput sc
+    printf "\nSelect Options:        [ 0 ] Multilib     [ 1 ] ChaoticAUR  [ 2 ] ArchLinuxCN  [ 3 ] AUR : "
+
+    enable_multilib=0
+    enable_chaotic=0
+    enable_archlinuxcn=0
+    enable_aur=0
+
+     while read -rN 1 -d "" -s res; do
+        case "$res" in
+            0)
+                test $enable_multilib -eq 0 && enable_multilib=1 || enable_multilib=0
+                ;;
+            1)
+                test $enable_chaotic -eq 0 && enable_chaotic=1 || enable_chaotic=0
+                ;;
+            2)
+                test $enable_archlinuxcn -eq 0 && enable_archlinuxcn=1 || enable_archlinuxcn=0
+                ;;
+            3)
+                test $enable_aur -eq 0 && enable_aur=1 || enable_aur=0
+                ;;
+            $'\x1b')
+                clear
+                exit 0
+                ;;
+            $'\n')
+                break
+                ;;
+            *)
+                continue
+                ;;
+        esac
+
+        tput rc
+        printf "\n"
+        tput cuf 91
+        printf "%8s" ''
+        tput cub 8
+        test $enable_multilib -eq 0 || printf "0 "
+        test $enable_chaotic -eq 0 || printf "1 "
+        test $enable_archlinuxcn -eq 0 || printf "2 "
+        test $enable_aur -eq 0 || printf "3 "
+    done
+}
+
+printf "\n"
+tput sc
+read -sN 1 -p "
+Ativar Todos os Idiomas? (def.N):     [ Y ] Sim   [ N ] Não   [ A ] Auto : " res
+
+tput rc
+tput cuf 75
+case "$res" in
+    [yY])
+        enable_lang=1
+        printf "Y"
+        ;;
+    [aA])
+        enable_lang=2
+        printf "A"
+        ;;
+    $'\x1b')
+        clear
+        exit 0
+        ;;
+    *)
+        printf "N"
+        enable_lang=0
+    ;;
+esac
+
+printf "\n"
+tput sc
+read -sN 1 -p "
+Criar AppImage de Imediato? (def.N):  [ Y ] Sim   [ N ] Não : " res
+
+tput rc
+tput cuf 62
+case "$res" in
+    [yY])
+        create_appimage=1
+        printf "Y"
+        ;;
+    $'\x1b')
+        clear
+        exit 0
+        ;;
+    *)
+        printf "N"
+        create_appimage=0
+        ;;
+esac
+
+printf "\n"
+read -N 1 -p "
+Concluído - ENTER para Continuar!"
+
+__apply_settings
+exit 0
