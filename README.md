@@ -52,7 +52,9 @@ precisar de conteiner.
 Uma solução é o proot, que é um pouco mais lento para iniciar o programa no conteiner, mas
 totalmente funcional. 
 
-- Não é possível a execução do Junest usando superusuário. É preciso uma conta de usuário comum para poder executar o AppImage com o Junest. Distros modulares como o Puppy costumam usar conta root por padrão, o que faz do AppImage incompatível com o sistema sem uma conta de usuário comum.
+- Não é possível a execução do Junest usando superusuário. É preciso uma conta de usuário comum para
+poder executar o AppImage com o Junest. Distros modulares como o Puppy costumam usar conta root por
+padrão, o que faz do AppImage incompatível com o sistema sem uma conta de usuário comum.
 
 - Alguns programas podem precisar acessar o sistema host para poder realizar alguma função no sistema.
 Eles podem acabar assumindo o conteiner como se fosse o host.
@@ -66,9 +68,11 @@ Eles podem acabar assumindo o conteiner como se fosse o host.
     /lib/x86_64-linux-gnu/libc.so.6: version `GLIBC_2.34' not found (required by /usr/lib/libstdc++.so.6)
     ```
 
-  - Não é possível garantir a adição de todas as dependências, uma vez que bibliotecas de baixo nível não costumam ser recomendadas para adição no AppImage.
+  - Não é possível garantir a adição de todas as dependências, uma vez que bibliotecas de baixo nível 
+    não costumam ser recomendadas para adição no AppImage.
 
-  - Ainda há programas que não foram pensados para serem portáteis e podem exigir acesso a caminhos absolutos em seus códigos.
+  - Ainda há programas que não foram pensados para serem portáteis e podem exigir acesso a caminhos 
+    absolutos em seus códigos.
 
   - É difícil criar Appimages de programas desenvolvidos em **Python**.
 
@@ -141,7 +145,7 @@ $ sudo ln -s ArchAppImageGen /usr/bin/ArchAppImageGen
 ## ⚙️ Teste do AppImage
 
 O **RECOMENDADO** é configurar o script para não criar o AppImage de imediato. Assim, os testes
-serão feitos usando o AppRun. Entretanto, mesmo que o programa abra corretamente, é sim 
+serão feitos usando o AppRun. Entretanto, mesmo que o AppImage abra corretamente, é sim 
 necessário verificar seu funcionamento a procura de algum bug ou alguma inconsistência. 
 
 1. Execute o AppImage no terminal e verifique se não há nenhum erro durante a execução do programa:
