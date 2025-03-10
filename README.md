@@ -20,7 +20,7 @@ de contar com vários métodos de criação de AppImage e inclusão do **GLibC**
 
 ## 🎯 Objetivo
 
-O objetivo do **ArchAppImage** é oferecer uma solução simplificada para simplificar a criação de 
+O objetivo do **ArchAppImage** é oferecer uma solução simplificada para facilitar a criação de 
 **AppImage** via Conteiner em qualquer sistema, reduzindo a complexidade do processo e
 garantindo maior compatibilidade entre vários sistemas Linux.
 
@@ -28,43 +28,83 @@ garantindo maior compatibilidade entre vários sistemas Linux.
 
 - O formato **AppImage** permite rodar aplicativos de forma portátil sem necessidade de instalação.
 No entanto, a criação de AppImage pode ser trabalhosa. O método convencional de empacotamento,
-pode exigir muitos testes em várias distros **Linux** para garantir o máximo de compatibilidade possível.
-Portanto, é muito difícil garantir que o AppImage vai funcionar na maioria das distros. 
+pode exigir muitos testes em várias distros **Linux** para garantir o máximo de compatibilidade
+possível. Portanto, é muito difícil garantir que o AppImage vai funcionar na maioria das distros. 
+
+- O método tradicional de criação de AppImage, sugere que você use um sistema mais antigo para
+criar seus AppImages, o que faria com que fosse necessário usar ou dedicar um ambiente **oldstable**
+separado do seu host para a criação de Appimage ou uma VM dedicada para isso.  
+
 - Para cobrir o problema de compatibilidade com o **GLibC**, o mais recomendado é a adição do 
 próprio recurso ao AppImage, pois assim é possível usar o **ld-linux** para abrir os programas.
-- O projeto **ArchImage** é uma excelente ferramenta de criação de AppImage. Mas, segundo meus testes,
-o desempenho e o modo como ele funcionava, não era satisfatório e as vezes precisava esperar muito
-tempo para saber se o empacotamento funcionou. Eu decidi que eu queria uma solução extremamente rápida
-para saber se realmente deu certo ou não as configurações antes de empacotar o AppImage.
+
+- O projeto **ArchImage** é uma excelente ferramenta de criação de AppImage. Mas, segundo meus
+ testes, o desempenho e o modo como ele funcionava, não era satisfatório e as vezes precisava 
+ esperar muito tempo para saber se o empacotamento funcionou. Eu decidi que eu queria uma solução
+ extremamente rápida para saber se realmente deu certo as configurações antes mesmo de 
+ empacotar o AppImage.
+
 - A ideia de empacotar por **Conteiner** funciona bem, mas nem todos os programas precisam ser
 empacotados como conteiner, então é necessário um modo de empacotamento que criasse o AppImage, sem
-precisar de conteiner. Soluções como bwrap, podem falhar em sistemas com restrições de **namespaces**
-e não funcionarão. Uma solução é o proot, que é um pouco mais lento para iniciar o programa no
-conteiner, mas totalmente funcional. 
+precisar de conteiner. 
+
+- Soluções como bwrap, podem falhar em sistemas com restrições de **namespaces** e não funcionarão.
+Uma solução é o proot, que é um pouco mais lento para iniciar o programa no conteiner, mas
+totalmente funcional. 
+
+- Não é possível a execução do Junest usando superusuário. É preciso uma conta de usuário comum para poder executar o AppImage com o Junest. Distros modulares como o Puppy costumam usar conta root por padrão, o que faz do AppImage incompatível com o sistema sem uma conta de usuário comum.
+
+- Alguns programas podem precisar acessar o sistema host para poder realizar alguma função no sistema.
+Eles podem acabar assumindo o conteiner como se fosse o host.
+
 - Trabalhar com AppImage, também é uma forma de entender como o **Sistema Linux** funciona.
+
+## ⛔️ Problemas do Método Tradicional de Criação de AppImage 
+
+  - Se o seu Sistema for muito desatualizado, você vai se deparar com um erro parecido com esse:
+    ```bash
+    /lib/x86_64-linux-gnu/libc.so.6: version `GLIBC_2.34' not found (required by /usr/lib/libstdc++.so.6)
+    ```
+
+  - Não é possível garantir a adição de todas as dependências, uma vez que bibliotecas de baixo nível não costumam ser recomendadas para adição no AppImage.
+
+  - Ainda há programas que não foram pensados para serem portáteis e podem exigir acesso a caminhos absolutos em seus códigos.
+
+  - É difícil criar Appimages de programas desenvolvidos em **Python**.
 
 ## 🚀 Características e Recursos
 
 - O Projeto conta com uma interface de linha de comando para a configuração mais básica. Os ajustes
 mais refinados devem ser feitos no script de construção normalmente conforme a necessidade.
 - Um script de contrução até o momento: **APP-ArchAppImage**.
-- São quatro tipos de **AppRun** até o momento: **Padrão**, **Junest**, **bwrap**, **proot**. 
+- São quatro tipos de **AppRun** até o momento:
+   - **AppRun_bwrap** - conteiner bwrap.
+   - **AppRun_Conteiner** - conteiner junest ( ⚠️ Pode ser Removido ).
+   - **AppRun_proot** - conteiner proot.
+   - **AppRun_Universal** - modo padrão, sem conteiner.
+
 - Não há a necessidade de separar os projetos em diretórios.
 - Pode ser usado o mesmo conteiner para empacotar vários AppImages diferentes,
 economizando espaço em disco.
-- Também pode-se usar um conteiner sepadado para: **mutilib**, **ChaoticAUR**, **ArchLinuxCN** e **AUR**.
-- Se for preciso, pode ser criado um conteiner só para uma aplicação específica da mesma forma que
- no **ArchImage** e escolher se vai ter **mutilib**, **ChaoticAUR**, **ArchLinuxCN** ou **AUR**.
-- Possui resolução automática de dependências, podendo ser ajustado usando diferentes níveis de busca
-por dependências.
+- Também pode-se usar um conteiner sepadado para:
+   - **Mutilib** - para programas que precisam de multilib.
+   - **ChaoticAUR** - para programas do repositório do ChaoticAUR.
+   - **ArchLinuxCN** - para programas do repositório do ArchLinuxCN.
+   - **AUR** - para programas que serão compilados do repositório AUR.
+- Se for preciso, pode ser criado um conteiner só para uma aplicação específica da mesma forma
+ que é feito no projeto do **ArchImage** e escolher se vai ser preciso o **mutilib**,
+ **ChaoticAUR**, **ArchLinuxCN** ou **AUR** para a construção do AppImage.
+- Possui resolução automática de dependências, podendo ser ajustado usando diferentes níveis 
+de busca por dependências.
 - Em programas binários, pode ser habilitado uma busca por dlls, que pode ajudar a executar o
 programa usando menos níveis de busca por dependências, o que pode reduzir o tamanho do AppImage.
-- Você pode ativar a autointegração na área de trabalho e a autointegração de autoinicialização
-durante a execução do AppImage.
+- Você pode ativar a autointegração na área de trabalho e a autointegração de inicialização
+durante a primeira execução do AppImage.
 - Possui uma forma alternativa para configurar a detecção correta do idioma de forma definitiva em
-caso de programas que não detectam o idioma de imediato.
+caso de programas que não detectam o idioma de forma alguma.
 - O método padrão conta com um método automático para resolver o cache do gdk-pixbuf2 para 
 programas que usam gtk.
+- Opções de ajustes relacionados a programas que usam python.
 
 ## 🛠️ Instalação
 
@@ -78,7 +118,7 @@ $ cd ArchAppImage
 $ sudo ln -s ArchAppImageGen /usr/bin/ArchAppImageGen
 ```
 
-## 🎮 Utilização Básica
+## 🖥️ Utilização Básica
 
 1. A primeira coisa que você vai fazer, é abrir o utilitário via terminal:
    ```bash
@@ -98,13 +138,49 @@ $ sudo ln -s ArchAppImageGen /usr/bin/ArchAppImageGen
    ```
    Se tudo der certo e o script já estiver configurado corretamente, o AppImage será criado.
 
+## ⚙️ Teste do AppImage
+
+O **RECOMENDADO** é configurar o script para não criar o AppImage de imediato. Assim, os testes
+serão feitos usando o AppRun. Entretanto, mesmo que o programa abra corretamente, é sim 
+necessário verificar seu funcionamento a procura de algum bug ou alguma inconsistência. 
+
+1. Execute o AppImage no terminal e verifique se não há nenhum erro durante a execução do programa:
+
+   ```bash
+   $ ./Sample-1.2.3-x86_64.AppImage
+   ```
+
+2. Para uma saída mais detalhada, use LD_DEBUG. Portanto, para procurar por `libs` faltantes, use:
+   ```bash
+   $ LD_DEBUG=libs ./Sample-1.2.3-x86_64.AppImage
+   ```
+
+3. Para ver os arquivos ausentes, use:
+   ```bash
+   $ LD_DEBUG=files ./Sample-1.2.3-x86_64.AppImage
+   ```
+
+   Para uma deparação mais aprimorada, consulte: https://www.bnikolic.co.uk/blog/linux-ld-debug.html
+
+
+
+## ⚠️ Solução de Problemas
+
+Existe um dodumento do Gist que pode ajudar a solucionar alguns problemas dusrante a criação
+de um AppImage:
+- 📜 [Limitações e Soluções para a Criação de AppImage](https://gist.github.com/LinuxDicasPro/5da0c06a41791f1b6a8c15bbd69d442d)
+
+Na documentação oficial do AppImage, esses documentos podem ajudar:
+   - 📌 [Problemas com Fuse](https://docs.appimage.org/user-guide/troubleshooting/fuse.html)
+   - 📌 [Problemas com Limitação de Namespace](https://docs.appimage.org/user-guide/troubleshooting/electron-sandboxing.html)
+
 
 ## 📖 Documentação
 
 Para mais detalhes sobre o uso e as funcionalidades do **ArchAppImage**,
 consulte a documentação oficial:
 
-📄 [Documentação Completa](https://github.com/LinuxDicasPro/ArchAppImage/wiki) ( Ainda não Escrito )
+📜 [Documentação Completa](https://github.com/LinuxDicasPro/ArchAppImage/wiki) ( Ainda não Escrito )
 
 ## 📷 Capturas de Tela
 
@@ -185,5 +261,3 @@ o texto completo da licença no site da Free Software Foundation:
 - 💬 **Telegram:** [LinuxDicasPro](https://t.me/LinuxDicasPro)  
 - ▶️ **YouTube:** [LinuxDicasPro](https://www.youtube.com/@LinuxDicasPro)  
 - 👥 **Reddit:** [r/LinuxDicasPro](https://www.reddit.com/r/LinuxDicasPro/)
-
-

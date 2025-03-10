@@ -160,14 +160,14 @@ _custom_read "Package Name: "
 test -z "$RES" && exit 0
 package_name="$RES"
 
-_custom_read "Binary Name: " "$package_name"
+_custom_read "Executable Binary Name: " "$package_name"
 
 test -z "$RES" && exit 0
 binary_name="$RES"
 
 tput sc
 read -N 1 -p "
-Nível de Busca de Dependencias (1-9) def.1: " res
+Dependency Search Level (1-9) def.1: " res
 
 case "$res" in
     [0-9])
@@ -188,7 +188,7 @@ esac
 
 dis_enter=1
 _custom_read "
-Dependencias Adicionais: "
+Additional Dependencies: "
 dis_enter=
 
 test -z "$DISRES" || exit 0
@@ -198,7 +198,7 @@ test -z "$add_deps" || {
 
     tput sc
     read -N 1 -p "
-Nível de Busca de Dependencias Adicionais (1-9) def.1: " res
+Additional Dependencies Search Level (1-9) def.1: " res
 
     case "$res" in
         [0-9])
@@ -266,7 +266,7 @@ esac
 
 test $conteiner_type -eq 5 && {
     _custom_read "
-Nome Customizado: " "$package_name"
+Custom Container Name: " "$package_name"
 
     test -z "$RES" && exit 0
     custom_name="$RES"
@@ -320,7 +320,7 @@ Nome Customizado: " "$package_name"
 printf "\n"
 tput sc
 read -sN 1 -p "
-Ativar Todos os Idiomas? (def.N):     [ Y ] Sim   [ N ] Não   [ A ] Auto : " res
+Activate All Languages? (def.N):     [ Y ] Sim   [ N ] Não   [ A ] Auto : " res
 
 tput rc
 tput cuf 75
@@ -346,7 +346,7 @@ esac
 printf "\n"
 tput sc
 read -sN 1 -p "
-Criar AppImage de Imediato? (def.N):  [ Y ] Sim   [ N ] Não : " res
+Create AppImage Immediately? (def.N):  [ Y ] Sim   [ N ] Não : " res
 
 tput rc
 tput cuf 62
@@ -367,7 +367,7 @@ esac
 
 printf "\n"
 read -N 1 -p "
-Concluído - ENTER para Continuar!"
+Done - ENTER to Continue!"
 
 __apply_settings
 exit 0
