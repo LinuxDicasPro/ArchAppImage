@@ -170,7 +170,7 @@ necessário verificar seu funcionamento a procura de algum bug ou alguma inconsi
 
 ## ⚠️ Solução de Problemas
 
-Existe um dodumento do Gist que pode ajudar a solucionar alguns problemas dusrante a criação
+Existe um documento do Gist que pode ajudar a solucionar alguns problemas dusrante a criação
 de um AppImage:
 - 📜 [Limitações e Soluções para a Criação de AppImage](https://gist.github.com/LinuxDicasPro/5da0c06a41791f1b6a8c15bbd69d442d)
 
