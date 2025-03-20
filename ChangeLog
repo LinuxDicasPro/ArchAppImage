@@ -1,12 +1,20 @@
+2025-03-19:
+    - add AppRun_bwrap_proot
+    - change AppRun_Universal
+    - rename AppRun_Conteiner to AppRun_junest
+    - update APP-ArchAppImage
+    - update ArchAppImageGen
+    - fix and update ArchAppImageGenV2
+    - update readme
 2025-03-10:
-    - update readme.
-    - update ArchAppImageGenV2.
+    - update readme
+    - update ArchAppImageGenV2
 2025-03-06:
-    - upload ArchAppImageGenV2.
+    - upload ArchAppImageGenV2
 2025-03-05:
-    - fix and update ArchAppImageGen.
-    - update APP-ArchAppImage.
-    - update AppRun_Universal.
+    - fix and update ArchAppImageGen
+    - update APP-ArchAppImage
+    - update AppRun_Universal
 2025-02-25:
     - add preview
     - change APP-ArchAppImage

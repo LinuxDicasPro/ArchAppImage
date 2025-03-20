@@ -104,17 +104,12 @@ function __apply_settings
     }
 
     test $appimage_mode -eq 0 && sed -i "s/mode=.*/mode=\"default\"/" $prg || sed -i "s/mode=.*/mode=\"conteiner\"/" $prg
-    test $appimage_mode -eq 1 && sed -i "s/use_apprun_bwrap=.*/use_apprun_bwrap=0/" $prg
-    test $appimage_mode -eq 2 && sed -i "s/use_apprun_bwrap=.*/use_apprun_bwrap=1/" $prg
-    test $appimage_mode -eq 3 && sed -i "s/use_apprun_bwrap=.*/use_apprun_bwrap=2/" $prg
+    test $appimage_mode -eq 1 && sed -i "s/use_apprun_type=.*/use_apprun_type=0/" $prg
+    test $appimage_mode -eq 2 && sed -i "s/use_apprun_type=.*/use_apprun_type=1/" $prg
+    test $appimage_mode -eq 3 && sed -i "s/use_apprun_type=.*/use_apprun_type=2/" $prg
+    test $appimage_mode -eq 3 && sed -i "s/use_apprun_type=.*/use_apprun_type=3/" $prg
 
-    test $conteiner_type -eq 0 && sed -i "s/bootstrap_type=.*/bootstrap_type=/" $prg
-    test $conteiner_type -eq 1 && sed -i "s/bootstrap_type=.*/bootstrap_type=\"multilib\"/" $prg
-    test $conteiner_type -eq 2 && sed -i "s/bootstrap_type=.*/bootstrap_type=\"chaotic\"/" $prg
-    test $conteiner_type -eq 3 && sed -i "s/bootstrap_type=.*/bootstrap_type=\"archlinuxcn\"/" $prg
-    test $conteiner_type -eq 4 && sed -i "s/bootstrap_type=.*/bootstrap_type=\"aur\"/" $prg
-
-    test $conteiner_type -eq 5 && {
+    test $conteiner_custom -eq 0 || {
         sed -i "s/custom_conteiner_name=.*/custom_conteiner_name=\"$custom_name\"/" $prg
 
         sed -i "s/enable_multilib=.*/enable_multilib=$enable_multilib/" $prg
@@ -138,7 +133,7 @@ function __config
 clear
 
 read -sN 1 -p "
-ArchAppImage - Empacotador de AppImage - Mauricio Ferrari [LinuxDicasPro]
+ArchAppImage - AppImage Packager - Mauricio Ferrari [LinuxDicasPro]
 
 [ENTER] Continue   [ C ] Config   [ESC] Exit
 " res
@@ -180,7 +175,7 @@ case "$res" in
     *)
         tput rc
         printf "\n"
-        tput cuf 44
+        tput cuf 37
         printf "1"
         dep_level=1
         ;;
@@ -211,18 +206,19 @@ Additional Dependencies Search Level (1-9) def.1: " res
         *)
             tput rc
             printf "\n"
-            tput cuf 55
+            tput cuf 50
             printf "1"
             add_dep_level=1
             ;;
     esac
+    printf "\n"
 
 }
 
-printf "\n"
 tput sc
 read -N 1 -p "
-AppRun (def.0):        [ 0 ] Default      [ 1 ] Junest      [ 2 ] bwrap        [ 3 ] proot : " res
+AppRun (def.0):     [ 0 ] Default      [ 1 ] junest      [ 2 ] bwrap
+                    [ 3 ] proot        [ 4 ] bwrap_proot : " res
 
 case "$res" in
     [0-3])
@@ -234,37 +230,35 @@ case "$res" in
         ;;
     *)
         tput rc
-        printf "\n"
-        tput cuf 93
+        printf "\n\n"
+        tput cuf 59
         printf "0"
         appimage_mode=0
         ;;
 esac
 
-printf "\n"
+printf "\n\n"
 tput sc
-read -N 1 -p "
-Conteiner Type(def.0): [ 0 ] Default      [ 1 ] Multilib    [ 2 ] ChaoticAUR
-                       [ 3 ] ArchLinuxCN  [ 4 ] AUR         [ 5 ] Custom : " res
+read -sN 1 -p "Configure Custom Container? (def.N):   [ Y ] Sim   [ N ] Não : " res
 
+tput rc
+tput cuf 63
 case "$res" in
-    [0-5])
-        conteiner_type=$res
+    [yY])
+        conteiner_custom=1
+        printf "Y"
         ;;
     $'\x1b')
         clear
         exit 0
         ;;
     *)
-        tput rc
-        printf "\n\n"
-        tput cuf 75
-        printf "0"
-        conteiner_type=0
+        printf "N"
+        conteiner_custom=0
         ;;
 esac
 
-test $conteiner_type -eq 5 && {
+test $conteiner_custom -eq 0 || {
     _custom_read "
 Custom Container Name: " "$package_name"
 
@@ -272,7 +266,7 @@ Custom Container Name: " "$package_name"
     custom_name="$RES"
 
     tput sc
-    printf "\nSelect Options:        [ 0 ] Multilib     [ 1 ] ChaoticAUR  [ 2 ] ArchLinuxCN  [ 3 ] AUR : "
+    printf "\nSelect Options:     [ 0 ] Multilib     [ 1 ] ChaoticAUR  [ 2 ] ArchLinuxCN  [ 3 ] AUR : "
 
     enable_multilib=0
     enable_chaotic=0
@@ -307,7 +301,7 @@ Custom Container Name: " "$package_name"
 
         tput rc
         printf "\n"
-        tput cuf 91
+        tput cuf 88
         printf "%8s" ''
         tput cub 8
         test $enable_multilib -eq 0 || printf "0 "
@@ -317,13 +311,12 @@ Custom Container Name: " "$package_name"
     done
 }
 
-printf "\n"
+printf "\n\n"
 tput sc
-read -sN 1 -p "
-Activate All Languages? (def.N):     [ Y ] Sim   [ N ] Não   [ A ] Auto : " res
+read -sN 1 -p "Activate All Languages? (def.N):       [ Y ] Sim   [ N ] Não   [ A ] Auto : " res
 
 tput rc
-tput cuf 75
+tput cuf 76
 case "$res" in
     [yY])
         enable_lang=1
@@ -343,13 +336,12 @@ case "$res" in
     ;;
 esac
 
-printf "\n"
+printf "\n\n"
 tput sc
-read -sN 1 -p "
-Create AppImage Immediately? (def.N):  [ Y ] Sim   [ N ] Não : " res
+read -sN 1 -p "Create AppImage Immediately? (def.N):  [ Y ] Sim   [ N ] Não : " res
 
 tput rc
-tput cuf 62
+tput cuf 63
 case "$res" in
     [yY])
         create_appimage=1

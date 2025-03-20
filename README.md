@@ -83,7 +83,8 @@ mais refinados devem ser feitos no script de construção normalmente conforme a
 - Um script de contrução até o momento: **APP-ArchAppImage**.
 - São quatro tipos de **AppRun** até o momento:
    - **AppRun_bwrap** - conteiner bwrap.
-   - **AppRun_Conteiner** - conteiner junest ( ⚠️ Pode ser Removido ).
+   - **AppRun_bwrap_proot** - conteiner bwrap com proot como fallbak.
+   - **AppRun_junest** - conteiner junest.
    - **AppRun_proot** - conteiner proot.
    - **AppRun_Universal** - modo padrão, sem conteiner.
 
@@ -261,7 +262,7 @@ o texto completo da licença no site da Free Software Foundation:
 
 ## 📩 Contato
 
-- 📧 Email: contatolinuxdicaspro@gmail.com
+- 📧 **Email**: contatolinuxdicaspro@gmail.com
 - 💬 **Telegram:** [LinuxDicasPro](https://t.me/LinuxDicasPro)  
 - ▶️ **YouTube:** [LinuxDicasPro](https://www.youtube.com/@LinuxDicasPro)  
 - 👥 **Reddit:** [r/LinuxDicasPro](https://www.reddit.com/r/LinuxDicasPro/)

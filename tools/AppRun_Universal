@@ -97,14 +97,6 @@ XDG_CONFIG_DIRS      = $XDG_CONFIG_DIRS
 TEXTDOMAINDIR        = $TEXTDOMAINDIR
 LOCPATH              = $LOCPATH
 GSETTINGS_SCHEMA_DIR = $GSETTINGS_SCHEMA_DIR
-GIMP2_LOCALEDIR      = $GIMP2_LOCALEDIR
-GIMP3_LOCALEDIR      = $GIMP3_LOCALEDIR
-GIMP2_DATADIR        = $GIMP2_DATADIR
-GIMP3_DATADIR        = $GIMP3_DATADIR
-GIMP2_SYSCONFDIR     = $GIMP2_SYSCONFDIR
-GIMP3_SYSCONFDIR     = $GIMP3_SYSCONFDIR
-GIMP2_PLUGINDIR      = $GIMP3_PLUGINDIR
-GIMP3_PLUGINDIR      = $GIMP3_PLUGINDIR
 REQUESTS_CA_BUNDLE   = $REQUESTS_CA_BUNDLE
 GCONV_PATH           = $GCONV_PATH
 BABL_PATH            = $BABL_PATH
@@ -150,18 +142,6 @@ export TEXTDOMAINDIR="$APPDIR/usr/share/locale"
 export LOCPATH="$APPDIR/usr/share/locale"
 
 export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas/"
-
-export GIMP2_LOCALEDIR="$APPDIR/usr/share/locale"
-export GIMP3_LOCALEDIR="$APPDIR/usr/share/locale"
-
-export GIMP2_DATADIR="$(echo $APPDIR*/usr/share/gimp/*)"
-export GIMP3_DATADIR="$(echo $APPDIR*/usr/share/gimp/*)"
-
-export GIMP2_SYSCONFDIR="$(echo $APPDIR*/etc/gimp/*)"
-export GIMP3_SYSCONFDIR="$(echo $APPDIR*/etc/gimp/*)"
-
-export GIMP2_PLUGINDIR="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}gimp/*); echo "${i[0]}")"
-export GIMP3_PLUGINDIR="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}gimp/*); echo "${i[0]}")"
 
 export REQUESTS_CA_BUNDLE=$(i=(/etc/{ssl,pki}/certs/ca-{certificates,bundle}*crt); echo "${i[0]}")
 

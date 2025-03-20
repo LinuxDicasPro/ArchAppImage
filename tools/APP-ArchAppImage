@@ -29,7 +29,7 @@ level_search_add_deps=1  # detect add dependences 1 - 2 - 3 ...
 
 mode="default"  # default - conteiner
 
-use_apprun_bwrap=0  # mode conteiner: 0 (false) - 1 (true) - 2 (proot)
+use_apprun_type=0  # mode conteiner: 0 (junest) - 1 (bwrap) - 2 (proot) - 3 (bwrap_proot_fallback)
 
 enable_auto_integration=0            # 0 (false) or 1 (true)
 enable_auto_integration_autostart=0  # 0 (false) or 1 (true)
@@ -45,7 +45,6 @@ enable_build_aur=0    # 0 (false) or 1 (true)
 use_desktop_file=  # optional - "$CWD/usr/share/applications/desktopfile.desktop"
 use_icon_file=     # optional - "$CWD/usr/share/pixmaps/icon.png"
 
-bootstrap_type=               # empty (default) - multilib - chaotic - archlinuxcn - aur
 use_local_junest_bootstrap=0  # 0 (false) or 1 (true) - optional
 
 junest_link=  # optional
@@ -79,9 +78,8 @@ create_appimage=0    # 0 (false) or 1 (true)
 test -z "$package_name" && exit 1
 
 binary_name="${binary_name:-"$package_name"}"
-custom_conteiner_name="${custom_conteiner_name:+"_$custom_conteiner_name"}"
 
-conteiner_rootfs="$CWD/arch${custom_conteiner_name:-${bootstrap_type:+"_$bootstrap_type"}}_bootstrap"
+conteiner_rootfs="$CWD/arch${custom_conteiner_name:+"_$custom_conteiner_name"}_bootstrap"
 tool_dirs="$CWD/tools"
 
 appdir="$CWD/$package_name.AppDir"
@@ -89,7 +87,7 @@ appdir="$CWD/$package_name.AppDir"
 test -d "$tool_dirs" || mkdir -pv "$tool_dirs"
 test -d "$appdir" || mkdir -pv "$appdir"
 
-test "$bootstrap_type" = "aur" -o $enable_build_aur -eq 1 && use_aur="yay"
+test $enable_build_aur -eq 1 && use_aur="yay"
 
 pacman=${use_aur:-sudo "pacman"}
 
@@ -121,37 +119,18 @@ junest_file="$(
 
 apprun="$(
     test "$mode" = "conteiner" && {
-        test $use_apprun_bwrap -eq 2 && {
-            printf "$tool_dirs/AppRun_proot"
-            test -f "$tool_dirs/AppRun_proot" && exit 0
-            (
-                wget -q --show-progress -O "$tool_dirs/AppRun_proot" \
-                    https://raw.githubusercontent.com/LinuxDicasPro/ArchAppImage/refs/heads/master/tools/AppRun_proot
-            )
-            exit 0
-        }
-        test $use_apprun_bwrap -eq 1 && {
-            printf "$tool_dirs/AppRun_bwrap"
-            test -f "$tool_dirs/AppRun_bwrap" && exit 0
-            (
-                wget -q --show-progress -O "$tool_dirs/AppRun_bwrap" \
-                    https://raw.githubusercontent.com/LinuxDicasPro/ArchAppImage/refs/heads/master/tools/AppRun_bwrap
-            )
-            exit 0
-        }
-        printf "$tool_dirs/AppRun_Conteiner"
-        test -f "$tool_dirs/AppRun_Conteiner" && exit 0
-        (
-            wget -q --show-progress -O "$tool_dirs/AppRun_Conteiner" \
-                https://raw.githubusercontent.com/LinuxDicasPro/ArchAppImage/refs/heads/master/tools/AppRun_Conteiner
-        )
-        exit 0
-    }
-    printf "$tool_dirs/AppRun_Universal"
-    test -f "$tool_dirs/AppRun_Universal" && exit 0
+        select_apprun="AppRun_junest"
+        test $use_apprun_type -eq 1 && select_apprun="AppRun_bwrap"
+        test $use_apprun_type -eq 2 && select_apprun="AppRun_proot"
+        test $use_apprun_type -eq 3 && select_apprun="AppRun_bwrap_proot"
+        true
+    } || select_apprun="AppRun_Universal"
+
+    printf "$tool_dirs/$select_apprun"
+    test -f "$tool_dirs/$select_apprun" && exit 0
     (
-        wget -q --show-progress -O "$tool_dirs/AppRun_Universal" \
-            https://raw.githubusercontent.com/LinuxDicasPro/ArchAppImage/refs/heads/master/tools/AppRun_Universal
+        wget -q --show-progress -O "$tool_dirs/$select_apprun" \
+            "https://raw.githubusercontent.com/LinuxDicasPro/ArchAppImage/refs/heads/master/tools/$select_apprun"
     )
 )"
 
@@ -159,7 +138,6 @@ printf "use apprun:       $apprun \n"
 printf "junest command:   $junest \n"
 printf "junest bootstrap: ${junest_file:-"disabled"} \n"
 printf "package manager:  $pacman \n"
-
 
 # ### DOWNLOAD APPIMAGE TOOLS ### ###############################################################################################
 
@@ -201,8 +179,8 @@ function _extra_config
 
 function _remove_others_bloatwares
 {
-    rm -rf "$appdir/etc/makepkg.conf"
-    rm -rf "$appdir/etc/pacman.conf"
+    rm -rvf "$appdir/etc/makepkg.conf"
+    rm -rvf "$appdir/etc/pacman.conf"
 
     etc_remove="makepkg.conf pacman"
     bin_remove="gcc"
@@ -211,22 +189,22 @@ function _remove_others_bloatwares
 
     for r in $etc_remove
     {
-        rm -rf "$appdir"/etc/"$r"*
+        rm -rvf "$appdir"/etc/"$r"*
     }
 
     for r in $bin_remove
     {
-        rm -rf "$appdir"/usr/bin/"$r"*
+        rm -rvf "$appdir"/usr/bin/"$r"*
     }
 
     for r in $lib_remove
     {
-        rm -rf "$appdir"/usr/lib/"$r"*
+        rm -rvf "$appdir"/usr/lib/"$r"*
     }
 
     for r in $share_remove
     {
-        rm -rf "$appdir"/usr/share/"$r"*
+        rm -rvf "$appdir"/usr/share/"$r"*
     }
 }
 
@@ -302,9 +280,9 @@ StartupNotify=true
 test -d "$conteiner_rootfs" || {
     "$junest" setup ${junest_file:+-i "$junest_file"}
 
-    test "$bootstrap_type" = "multilib" -o $enable_multilib -eq 1 && sed -i '/^#\[multilib\]/{s/^#//;n;s/^#//}' "$conteiner_rootfs/etc/pacman.conf"
+    test $enable_multilib -eq 1 && sed -i '/^#\[multilib\]/{s/^#//;n;s/^#//}' "$conteiner_rootfs/etc/pacman.conf"
 
-    test "$bootstrap_type" = "chaotic" -o $enable_chaoticaur -eq 1 && "$junest" -f -- bash -c "
+    test $enable_chaoticaur -eq 1 && "$junest" -f -- bash -c "
         pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com
         pacman-key --lsign-key 3056513887B78AEB
         pacman --noconfirm -U https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst
@@ -312,7 +290,7 @@ test -d "$conteiner_rootfs" || {
         printf '\n[chaotic-aur]\nInclude = /etc/pacman.d/chaotic-mirrorlist' >> /etc/pacman.conf
     "
 
-    test "$bootstrap_type" = "archlinuxcn" -o $enable_archlinuxcn -eq 1 && {
+    test $enable_archlinuxcn -eq 1 && {
         archlinuxcn_link="https://repo.archlinuxcn.org/x86_64/$( l=( $(
             grep "^archlinuxcn-keyring.*zst$" <(
                 awk -F '"' '{print $2}' <(
@@ -515,7 +493,7 @@ test "$mode" = "default" || {
     cp -av "$conteiner_rootfs/etc/junest" "$appdir/etc"
     cp -av "$conteiner_rootfs"/usr/share/{X11,wayland} "$appdir/usr/share/"
 
-    test -d "$appdir/junest" -o $use_apprun_bwrap -gt 0 || {
+    test -d "$appdir/junest" -o $use_apprun_type -gt 0 || {
         test -d "$tool_dirs/junest" || git clone https://github.com/fsquillace/junest.git "$tool_dirs/junest"
         mkdir -pv "$appdir/junest"
         cp -av "$tool_dirs"/junest/{bin,lib} "$appdir/junest"
@@ -610,7 +588,7 @@ test $enable_auto_integration -eq 0 || {
 test "$mode" = "conteiner" && {
     sed -i "s|PROGRAM=.*|PROGRAM=$which_bin|" "$appdir/AppRun"
 
-    test $use_apprun_bwrap -eq 0 || \
+    test $use_apprun_type -eq 0 || \
         sed -i "s|LD_LINUX=.*|LD_LINUX=\$APPDIR$(awk '{print $2}' <("$junest" -- whereis -bg ld-linux*.so.2))|" "$appdir/AppRun"
 } || {
     type_file="$(file "$appdir/$which_bin")"
@@ -677,7 +655,7 @@ test "$mode" = "default" && {
     JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/bin/gtk-update-icon-cache -f /usr/share/icons/hicolor" || true      # gtk2 gtk3
     JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/bin/gtk-query-immodules-3.0 > /etc/gtk-3.0/immodules.cache" || true   # gtk3
 
-    test $use_apprun_bwrap -eq 0 && _made_JuNest_a_potable_app
+    test $use_apprun_type -eq 0 && _made_JuNest_a_potable_app
 
     _enable_mountpoints_for_the_inbuilt_bubblewrap
 }
@@ -706,9 +684,10 @@ test $create_appimage -eq 0 || {
         }
 
         test "$mode" = "default" || {
-            test $use_apprun_bwrap -eq 2 && cp -v "$appdir"/usr/bin2/proot* "$appdir/usr/bin"
-            test $use_apprun_bwrap -eq 1 && cp -v "$appdir/usr/bin2/bwrap" "$appdir/usr/bin"
-            test $use_apprun_bwrap -eq 0 && cp -v "$appdir/usr/bin2"/{bash,bwrap,env,sh,tr,tty} "$appdir/usr/bin"
+            test $use_apprun_type -eq 3 && cp -v "$appdir"/usr/bin2/{bwrap,proot*} "$appdir/usr/bin"
+            test $use_apprun_type -eq 2 && cp -v "$appdir"/usr/bin2/proot* "$appdir/usr/bin"
+            test $use_apprun_type -eq 1 && cp -v "$appdir/usr/bin2/bwrap" "$appdir/usr/bin"
+            test $use_apprun_type -eq 0 && cp -v "$appdir/usr/bin2"/{bash,bwrap,proot*,env,sh,tr,tty} "$appdir/usr/bin"
         }
 
         rm -vr "$appdir/usr/bin2"
@@ -734,10 +713,12 @@ test $create_appimage -eq 0 || {
 
     type="$(
         test "$mode" = "conteiner" && {
-            test $use_apprun_bwrap -eq 2 && printf "_proot" || true
-            test $use_apprun_bwrap -eq 1 && printf "_bwrap" || true
-            test $use_apprun_bwrap -eq 0 && printf "_junest" || true
-        } || printf "_glibc"
+            test $use_apprun_type -eq 3 && printf "_bwrap_proot"
+            test $use_apprun_type -eq 2 && printf "_proot"
+            test $use_apprun_type -eq 1 && printf "_bwrap"
+            test $use_apprun_type -eq 0 && printf "_junest"
+            true
+        } || printf "_inc_glibc"
     )"
 
     n=( $( grep -E "^Name=" "$appdir"/*$package_name*.desktop ) )
@@ -751,8 +732,7 @@ test $create_appimage -eq 0 || {
     ARCH=x86_64 "$tool_dirs/appimagetool" \
         --runtime-file "$tool_dirs/runtime" \
         --comp zstd --mksquashfs-opt -Xcompression-level --mksquashfs-opt 20 \
-        -u "$UPINFO" "$appdir" "${name// /_}-$version-ArchAppImage${type}_$(date +"%d-%b-%Y")-x86_64.AppImage"
-    chmod -v +x "$CWD/${name// /_}-$version-ArchAppImage${type}_$(date +"%d-%b-%Y")-x86_64.AppImage"
+        -u "$UPINFO" "$appdir" "${name// /_}-$version-ArchAppImage${type}-$(date +"%d_%b_%Y")-x86_64.AppImage"
 }
 
 printf "Finished!\n"
