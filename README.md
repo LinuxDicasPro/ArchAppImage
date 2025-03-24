@@ -86,7 +86,7 @@ mais refinados devem ser feitos no script de construção normalmente conforme a
    - **AppRun_bwrap_proot** - conteiner bwrap com proot como fallbak.
    - **AppRun_junest** - conteiner junest.
    - **AppRun_proot** - conteiner proot.
-   - **AppRun_Universal** - modo padrão, sem conteiner.
+   - **AppRun_default** - modo padrão, sem conteiner.
 
 - Não há a necessidade de separar os projetos em diretórios.
 - Pode ser usado o mesmo conteiner para empacotar vários AppImages diferentes,

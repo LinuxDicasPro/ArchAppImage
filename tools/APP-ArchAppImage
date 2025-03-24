@@ -2,9 +2,19 @@
 #
 # ArchAppImage - Generate AppImage using rootfs, based ArchImage
 #
-# require bash 4 or higher
+# Require:
+#   - bash >= 4.x
+#   - binutils (readelf strip)
+#   - coreutils >= 5.93
+#   - curl
+#   - grep
+#   - sed
+#   - wget
+#   - which
+# Optional:
+#   - elfkickers (sstrip)
 #
-# By Mauricio Ferrari
+# By Mauricio Ferrari (m10ferrari1200@gmail.com)
 #
 ###############################################################################
 
@@ -16,7 +26,7 @@ set -e
 
 package_name=
 binary_name=   # optional
-dependences=  # optional
+dependences=   # optional
 
 use_font="noto-fonts"
 # use_font="gnu-free-fonts"
@@ -80,12 +90,11 @@ test -z "$package_name" && exit 1
 binary_name="${binary_name:-"$package_name"}"
 
 conteiner_rootfs="$CWD/arch${custom_conteiner_name:+"_$custom_conteiner_name"}_bootstrap"
-tool_dirs="$CWD/tools"
 
+tool_dirs="$CWD/tools"
 appdir="$CWD/$package_name.AppDir"
 
-test -d "$tool_dirs" || mkdir -pv "$tool_dirs"
-test -d "$appdir" || mkdir -pv "$appdir"
+mkdir -pv "$tool_dirs" "$appdir"
 
 test $enable_build_aur -eq 1 && use_aur="yay"
 
@@ -124,7 +133,7 @@ apprun="$(
         test $use_apprun_type -eq 2 && select_apprun="AppRun_proot"
         test $use_apprun_type -eq 3 && select_apprun="AppRun_bwrap_proot"
         true
-    } || select_apprun="AppRun_Universal"
+    } || select_apprun="AppRun_default"
 
     printf "$tool_dirs/$select_apprun"
     test -f "$tool_dirs/$select_apprun" && exit 0
@@ -134,15 +143,26 @@ apprun="$(
     )
 )"
 
+libselinux_link="https://repo.taiho.moe/selinux/$( l=( $(
+    grep "^libselinux.*zst$" <(
+        awk -F '"' '{print $2}' <(
+            curl -Ls https://repo.taiho.moe/selinux/ ))))
+    printf "${l[-1]}"
+)"
+
+test -f "$tool_dirs/libselinux.so.1" || {
+    wget -c -q --show-progress -O "$tool_dirs/${libselinux_link##*/}" $libselinux_link
+    tar -I zstd --strip-components=2 -C "$tool_dirs" -xvf "$tool_dirs/${libselinux_link##*/}" usr/lib/libselinux.so.1
+}
+
 printf "use apprun:       $apprun \n"
 printf "junest command:   $junest \n"
 printf "junest bootstrap: ${junest_file:-"disabled"} \n"
 printf "package manager:  $pacman \n"
 
+
 # ### DOWNLOAD APPIMAGE TOOLS ### ###############################################################################################
 
-
-test -d "$tool_dirs" || mkdir -pv "$tool_dirs"
 
 test -f "$tool_dirs/appimagetool" || {
     wget -q --show-progress -O "$tool_dirs/appimagetool" \
@@ -179,33 +199,24 @@ function _extra_config
 
 function _remove_others_bloatwares
 {
-    rm -rvf "$appdir/etc/makepkg.conf"
-    rm -rvf "$appdir/etc/pacman.conf"
-
     etc_remove="makepkg.conf pacman"
     bin_remove="gcc"
     lib_remove="gcc"
     share_remove="gcc"
 
-    for r in $etc_remove
-    {
-        rm -rvf "$appdir"/etc/"$r"*
-    }
+    declare -A remove_dirs=(
+        [etc]="$etc_remove"
+        [bin]="$bin_remove"
+        [lib]="$lib_remove"
+        [share]="$share_remove"
+    )
 
-    for r in $bin_remove
-    {
-        rm -rvf "$appdir"/usr/bin/"$r"*
-    }
+    for dir in "${!remove_dirs[@]}"; do
+        for r in ${remove_dirs[$dir]}; do
+            rm -rvf "$appdir/usr/$dir/$r"*
+        done
+    done
 
-    for r in $lib_remove
-    {
-        rm -rvf "$appdir"/usr/lib/"$r"*
-    }
-
-    for r in $share_remove
-    {
-        rm -rvf "$appdir"/usr/share/"$r"*
-    }
 }
 
 
@@ -243,12 +254,14 @@ function _made_JuNest_a_potable_app
 
 function _enable_mountpoints_for_the_inbuilt_bubblewrap
 {
-    mkdir -pv "$appdir"/{home,mnt,tmp,media,opt,run/{media,user},usr/{lib/locale,share/{fonts,themes}}}
+    mkdir -pv "$appdir"/{etc/fonts,lib/firmware,home,mnt,tmp,media,opt,run,var,usr/{lib/locale,share/{font-config,fonts,themes}}}
 
     test -f "$appdir/etc/localtime" && rm -vf "$appdir/etc/localtime"
     > "$appdir/etc/localtime"
 
+    test -f "$appdir/etc/nsswitch.conf" || > "$appdir/etc/nsswitch.conf"
     test -f "$appdir/etc/asound.conf" || > "$appdir/etc/asound.conf"
+    test -f "$appdir/etc/machine-id" || > "$appdir/etc/machine-id"
 }
 
 
@@ -313,15 +326,6 @@ test -d "$conteiner_rootfs" || {
 
     "$junest" -f -- bash -c "pacman --noconfirm -S which alsa-lib pacman-contrib binutils debugedit gzip $add_basic_stuff $use_font"
 
-    libselinux_link="https://repo.taiho.moe/selinux/$( l=( $(
-        grep "^libselinux.*zst$" <(
-            awk -F '"' '{print $2}' <(
-                curl -Ls https://repo.taiho.moe/selinux/ ))))
-        printf "${l[-1]}"
-    )"
-
-    "$junest" -f -- bash -c "pacman --noconfirm -U $libselinux_link"
-
     test -z "$use_aur" || "$junest" -f -- bash -c "
         pacman -S base-devel $add_compilers
         gpg --keyserver keyserver.ubuntu.com --recv-key C01E1CAD5EA2C4F0B8E3571504C367C218ADD4FF
@@ -353,7 +357,7 @@ test $noupdate = 1 || _junest_update
 remove_share_bloatwares="share/(cmake|man|licenses|doc|locale|info|gtk-doc|zoneinfo|pkgconfig${remove_others_share_bloatwares:+"|$remove_others_share_bloatwares"})"
 remove_libs_bloatwares="lib/(cmake|pkgconfig|systemd|sysctl.d|tmpfiles.d|sysusers.d|lib.*[.]a${remove_others_libs_bloatwares:+"|$remove_others_libs_bloatwares"})"
 remove_bins_bloatwares="bin/(systemd${remove_others_bins_bloatwares:+"|$remove_others_bins_bloatwares"})"
-remove_etc_bloatwares="/etc/(makepkg.conf.d|systemd${remove_others_etc_bloatwares:+"|$remove_others_etc_bloatwares"})"
+remove_etc_bloatwares="/etc/(systemd${remove_others_etc_bloatwares:+"|$remove_others_etc_bloatwares"})"
 
 find_deps=( $("$junest" -- bash -c "pactree -d $level_search_deps -u $package_name") )
 filter_deps=( ${find_deps[*]/[>|=]*/} )
@@ -470,39 +474,36 @@ for file in $all_files
 
     dest_dir="$appdir${file%/*}"
 
-    test -d "$dest_dir" || mkdir -pv "$dest_dir"
-
-    test -f "$dest_file" || {
-        test -e "$orig_file" && cp -av "$orig_file" "$dest_dir"
-    }
+    mkdir -pv "$dest_dir"
+    cp -nav "$orig_file" "$dest_dir"
 }
 
 test "$mode" = "default" || {
-    test -d "$appdir/etc" || mkdir -pv "$appdir/etc"
+    mkdir -pv "$appdir/etc"
 
-    test -f "$appdir/usr/lib/ld-linux-x86-64.so.2" || cp -v "$conteiner_rootfs/usr/lib/ld-linux-x86-64.so.2" "$appdir/usr/lib/"
-    test -f "$appdir/usr/lib/libc.so.6" || cp -v "$conteiner_rootfs"/usr/lib/libc.so* "$appdir/usr/lib/"
-    test -f "$appdir/usr/lib/libcap.so.2" || cp -v "$conteiner_rootfs"/usr/lib/libcap.so* "$appdir/usr/lib/"
-    test -f "$appdir/usr/lib/libgcc_s.so.1" || cp -v "$conteiner_rootfs"/usr/lib/libgcc_s.so* "$appdir/usr/lib/"
-    test -f "$appdir/usr/lib/libncursesw.so.6" || cp -v "$conteiner_rootfs"/usr/lib/libncursesw.so* "$appdir/usr/lib/"
-    test -f "$appdir/usr/lib/libreadline.so.8" || cp -v "$conteiner_rootfs"/usr/lib/libreadline.so* "$appdir/usr/lib/"
-    test -f "$appdir/usr/lib/libacl.so.1" || cp -v "$conteiner_rootfs"/usr/lib/libacl.so* "$appdir/usr/lib/"
-    test -f "$appdir/usr/lib/libselinux.so.1" || cp -v "$tool_dirs"/libselinux.so* "$appdir/usr/lib/"  # Debian
+    cp -nv "$conteiner_rootfs/usr/lib/ld-linux-x86-64.so.2" "$appdir/usr/lib/"
+    cp -nv "$conteiner_rootfs"/usr/lib/libc.so* "$appdir/usr/lib/"
+    cp -nv "$conteiner_rootfs"/usr/lib/libcap.so* "$appdir/usr/lib/"
+    cp -nv "$conteiner_rootfs"/usr/lib/libgcc_s.so* "$appdir/usr/lib/"
+    cp -nv "$conteiner_rootfs"/usr/lib/libncursesw.so* "$appdir/usr/lib/"
+    cp -nv "$conteiner_rootfs"/usr/lib/libreadline.so* "$appdir/usr/lib/"
+    cp -nv "$conteiner_rootfs"/usr/lib/libacl.so* "$appdir/usr/lib/"
+    cp -nv "$tool_dirs"/libselinux.so* "$appdir/usr/lib/"  # Debian bwrap
 
-    cp -v "$conteiner_rootfs"/usr/bin/{bash,bwrap,env,sh,tr,tty,sed,rm,proot*} "$appdir/usr/bin"
-    cp -av "$conteiner_rootfs/etc/junest" "$appdir/etc"
-    cp -av "$conteiner_rootfs"/usr/share/{X11,wayland} "$appdir/usr/share/"
+    cp -nv "$conteiner_rootfs"/usr/bin/{bash,bwrap,env,sh,tr,tty,sed,rm,proot*} "$appdir/usr/bin"
+    cp -nav "$conteiner_rootfs/etc/junest" "$appdir/etc"
+    cp -nav "$conteiner_rootfs"/usr/share/{X11,wayland} "$appdir/usr/share/"
 
     test -d "$appdir/junest" -o $use_apprun_type -gt 0 || {
         test -d "$tool_dirs/junest" || git clone https://github.com/fsquillace/junest.git "$tool_dirs/junest"
         mkdir -pv "$appdir/junest"
-        cp -av "$tool_dirs"/junest/{bin,lib} "$appdir/junest"
+        cp -nav "$tool_dirs"/junest/{bin,lib} "$appdir/junest"
     }
 
     (
         cd "$appdir"
-        test -L "$appdir/bin" || ln -sv usr/bin bin
-        test -L "$appdir/lib64" || ln -sv usr/lib lib64
+        ln -snfv usr/bin bin
+        ln -snfv usr/lib lib64
     )
 }
 
@@ -519,20 +520,17 @@ lib_audio_keywords="alsa jack pipewire pulse"
 test $use_lib_browser_launcher -eq 0 || lib_saved="$lib_saved $lib_browser_launcher"
 test $use_lib_audio_keywords -eq 0 || lib_saved="$lib_saved $lib_audio_keywords"
 
-test -z "$bin_saved" || for bin in $bin_saved
-{
-    cp -av "$conteiner_rootfs/usr/bin"/$bin "$appdir/usr/bin" || true
-}
+declare -A save_dirs=(
+    [bin]="$bin_saved"
+    [lib]="$lib_saved"
+    [share]="$share_saved"
+)
 
-test -z "$lib_saved" || for lib in $lib_saved
-{
-    cp -av "$conteiner_rootfs/usr/lib"/$lib* "$appdir/usr/lib" || true
-}
-
-test -z "$share_saved" || for share in $share_saved
-{
-    cp -av "$conteiner_rootfs/usr/share"/$share* "$appdir/usr/share" || true
-}
+for dir in "${!save_dirs[@]}"; do
+    for item in ${save_dirs[$dir]}; do
+        cp -nav "$conteiner_rootfs/usr/$dir/$item"* "$appdir/usr/$dir" || true
+    done
+done
 
 
 # ### COPY ICON DESKTOP FILE & APPRUN ### #######################################################################################
@@ -563,11 +561,11 @@ test -z "$desktop_file" && {
     desktop="${desktop_file##*/}"
     icon="${icon_file##*/}"
 
-    test -f "$appdir/$desktop" || cp -v "$desktop_file" "$appdir"
-    test -f "$appdir/$icon" || cp -v "$icon_file" "$appdir"
+    cp -nv "$desktop_file" "$appdir"
+    cp -nv "$icon_file" "$appdir"
 }
 
-cp -v "$apprun" "$appdir/AppRun"
+cp -v "$apprun" "$appdir/AppRun"  # Bom recriar sempre
 chmod +x "$appdir/AppRun"
 
 which_bin=$("$junest" -- bash -c "which $binary_name")
@@ -614,27 +612,23 @@ test "$mode" = "conteiner" && {
 
 
 test "$mode" = "default" && {
-    shopt -s nullglob
-
-    test -d "$appdir"/usr/lib/gdk-pixbuf-2.0 -a -z "$(echo "$apprun"/usr/lib/gdk-pixbuf-2.0/*/loaders.cache)" && {
-        cp -v "$conteiner_rootfs"/usr/lib/gdk-pixbuf-2.0/*/loaders.cache "$appdir"/usr/lib/gdk-pixbuf-2.0/*
-        sed -i "s|/usr|usr|g" "$appdir"/usr/lib/gdk-pixbuf-2.0/*/loaders.cache
+    test -d "$appdir/usr/lib/gdk-pixbuf-2.0" -a ! -d "$apprun/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache" && {
+        cp -v "$conteiner_rootfs"/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache "$appdir/usr/lib/gdk-pixbuf-2.0/2.10.0"
+        sed -i "s|/usr|usr|g" "$appdir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
     }
-
-    shopt -u nullglob
 } || {
-    test $config_all_locales -eq 0 || {
+    test $config_all_locales -eq 0 -o -f "$appdir/usr/lib/locale/locale-archive" || {
         JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/bin/iconvconfig" || true  # glibc
 
         test -f "$appdir/usr/share/locale/locale.alias" || {
             test -d "$appdir/usr/share/locale" || mkdir -p "$appdir/usr/share/locale"
-            cp -v "$conteiner_rootfs/usr/share/locale/locale.alias" "$appdir/usr/share/locale"
+            cp -nv "$conteiner_rootfs/usr/share/locale/locale.alias" "$appdir/usr/share/locale"
         }
 
         test $config_all_locales -eq 1 && sed -E 's/# /#~/g; s/#//g; s/~/# /g' "$conteiner_rootfs/etc/locale.gen" > "$appdir/etc/locale.gen"
 
         test $config_all_locales -eq 2 && {
-            cp -av "$conteiner_rootfs/etc/locale.gen" "$appdir/etc/locale.gen"
+            cp -av "$conteiner_rootfs/etc/locale.gen" "$appdir/etc/locale.gen" # sempre copiar
 
             for lang in $(cd "$appdir/usr/share/locale"; grep -v "[.]" <(printf "%s\n" *))
             {
@@ -680,17 +674,17 @@ test $create_appimage -eq 0 || {
 
         for bin in $binary_name $bin_saved
         {
-            cp -v "$appdir/usr/bin2/$bin" "$appdir/usr/bin"
+            cp -nv "$appdir/usr/bin2/$bin" "$appdir/usr/bin"
         }
 
         test "$mode" = "default" || {
-            test $use_apprun_type -eq 3 && cp -v "$appdir"/usr/bin2/{bwrap,proot*} "$appdir/usr/bin"
-            test $use_apprun_type -eq 2 && cp -v "$appdir"/usr/bin2/proot* "$appdir/usr/bin"
-            test $use_apprun_type -eq 1 && cp -v "$appdir/usr/bin2/bwrap" "$appdir/usr/bin"
-            test $use_apprun_type -eq 0 && cp -v "$appdir/usr/bin2"/{bash,bwrap,proot*,env,sh,tr,tty} "$appdir/usr/bin"
+            test $use_apprun_type -eq 3 && cp -nv "$appdir"/usr/bin2/{bwrap,proot*} "$appdir/usr/bin"
+            test $use_apprun_type -eq 2 && cp -nv "$appdir"/usr/bin2/proot* "$appdir/usr/bin"
+            test $use_apprun_type -eq 1 && cp -nv "$appdir/usr/bin2/bwrap" "$appdir/usr/bin"
+            test $use_apprun_type -eq 0 && cp -nv "$appdir/usr/bin2"/{bash,bwrap,proot*,env,sh,tr,tty} "$appdir/usr/bin"
         }
 
-        rm -vr "$appdir/usr/bin2"
+        rm -vrf "$appdir/usr/bin2"
     }
 
     strip="$(which sstrip || which strip)"

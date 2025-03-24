@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # Universal AppRun for AppImage
 #
@@ -6,7 +6,7 @@
 #
 ################################################
 
-APPDIR="$(cd "${0%/*}" && echo $PWD)"
+APPDIR="$(cd -- "${0%/*}" && pwd -P)"
 
 #_______________________________________________
 
@@ -28,51 +28,44 @@ ICON=
 #_______________________________________________
 
 
-test $AUTO_INTEGRATION -eq 0 || {
+if test ${AUTO_INTEGRATION:-0} -eq 1 && command -v grep >/dev/null && command -v sed >/dev/null
+then
     local_desktop=~/.local/share/applications
     local_icon=~/.local/share/pixmaps
     local_autostart=~/.config/autostart
 
-    test -d "$local_desktop" || mkdir -p "$local_desktop"
-    test -d "$local_icon" || mkdir -p "$local_icon"
+    mkdir -p "$local_desktop" "$local_icon" "$local_autostart"
 
-    test -f "$local_desktop/$DESKTOP" || cp "$APPDIR/$DESKTOP" "$local_desktop"
-    test -f "$local_icon/$ICON" || cp "$APPDIR/$ICON" "$local_icon"
+    cp -nv "$APPDIR/$DESKTOP" "$local_desktop"
+    cp -nv "$APPDIR/$ICON" "$local_icon"
 
-    test $AUTOSTART -eq 0 || {
-        test -d "$local_autostart" || mkdir -p "$local_autostart"
-        test -f "$local_autostart/$DESKTOP" || cp "$APPDIR/$DESKTOP" "$local_autostart"
-    }
+    if ! grep -q "$APPIMAGE" "$local_desktop/$DESKTOP"
+    then
+        sed -i "s|Exec=[^ ]*|Exec=${APPIMAGE}|" "$local_desktop/$DESKTOP"
+        sed -i "s|Icon=.*|Icon=${ICON%.*}|" "$local_desktop/$DESKTOP"
 
-    test -z "$DESKTOP" || {
-        grep -q "$APPIMAGE" "$local_desktop/$DESKTOP" || {
+        if test ${AUTOSTART:-0} -eq 1
+        then
+            cp -nv "$APPDIR/$DESKTOP" "$local_autostart"
 
-            parm="$( grep -o " .*"  <( grep -m1 "^Exec=.*" "$APPDIR/$DESKTOP" ))"
+            autoparm=${AUTOSTART_PARM:+" $AUTOSTART_PARM"}
+            sed -i "s|Exec=[^ ]*|Exec=${APPIMAGE}${autoparm}|" "$local_autostart/$DESKTOP"
+            sed -i "s|Icon=.*|Icon=${ICON%.*}|" "$local_desktop/$DESKTOP"
+        fi
 
-            sed -i "s|Exec=.*|Exec=${APPIMAGE}${parm}|" "$local_desktop/$DESKTOP"
-            sed -i "s|Icon=.*|Icon=${ICON%[.]*}|" "$local_desktop/$DESKTOP"
+        if command -v update-desktop-database >/dev/null
+        then
+            update-desktop-database -q >/dev/null 2>&1
+        fi
 
-            test $AUTOSTART -eq 0 || {
-                autoparm=${AUTOSTART_PARM:+" $AUTOSTART_PARM"}
-                sed -i "s|Exec=.*|Exec=${APPIMAGE}${autoparm}${parm}|" "$local_autostart/$DESKTOP"
-                sed -i "s|Icon=.*|Icon=${ICON%[.]*}|" "$local_autostart/$DESKTOP"
-            }
+        if test -e "usr/share/icons/hicolor/icon-theme.cache" && command -v gtk-update-icon-cache >/dev/null
+        then
+            gtk-update-icon-cache ~/.local/share/pixmaps/ >/dev/null 2>&1
+        fi
+    fi
+fi
 
-            /usr/bin/update-desktop-database -q 2>&1 >&-
-
-            test -e usr/share/icons/hicolor/icon-theme.cache && \
-                test -x /usr/bin/gtk-update-icon-cache && \
-                    /usr/bin/gtk-update-icon-cache ~/.local/share/pixmaps/ 2>&1 >&-
-        }
-    }
-}
-
-IFS_BAK=$IFS
-IFS=:
-
-export LIBRARY_PATH="$(i=($APPDIR*/{,usr/}lib{/,/{i386,x86_64}-linux-gnu/,64/}{,*/}); echo "${i[*]}")"
-
-IFS=$IFS_BAK
+export LIBRARY_PATH="$APPDIR/lib:$APPDIR/lib64:$APPDIR/usr/lib:$APPDIR/usr/lib64"
 
 PROOT_OPTIONS="-R $APPDIR \
     --bind=/dev \
@@ -88,7 +81,7 @@ PROOT_OPTIONS="-R $APPDIR \
     --bind=/etc/asound.conf \
     --bind=/etc/localtime \
     --bind=/lib/firmware \
-    --bind=/home --bind=/home/$USER \
+    --bind=/home \
     --bind=/media \
     --bind=/mnt \
     --bind=/opt \
@@ -101,7 +94,4 @@ PROOT_OPTIONS="-R $APPDIR \
     --bind=/var
 "
 
-test -z "$PROGRAM" || exec "${LD_LINUX:-$APPDIR/lib64/ld-linux-x86-64.so.2}" \
-    --inhibit-cache \
-    --library-path "${LIBRARY_PATH}" \
-    "$APPDIR/usr/bin/proot-x86_64" $PROOT_OPTIONS "$PROGRAM" "$@"
+exec "${LD_LINUX:-$APPDIR/lib64/ld-linux-x86-64.so.2}" --inhibit-cache --library-path "${LIBRARY_PATH}" "$APPDIR/usr/bin/proot-x86_64" $PROOT_OPTIONS "$PROGRAM" "$@"

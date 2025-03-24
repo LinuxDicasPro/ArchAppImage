@@ -1,3 +1,7 @@
+2025-03-23:
+    - fix all scripts in tools
+    - rename AppRun_Universal to AppRun_default
+    - scripts AppRun converted to POSIX using sh
 2025-03-19:
     - add AppRun_bwrap_proot
     - change AppRun_Universal
