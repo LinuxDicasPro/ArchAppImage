@@ -5,7 +5,7 @@
 <h1 align="center">ArchAppImage</h1>
 
 <h3 align="center">
-  Empacotador de AppImage Baseado no Projeto ArchImage (não é fork) que usa o
+  Empacotador de AppImage Baseado no Projeto ArchImage que usa o
   Conteiner Junest para criar AppImage a partir de pacotes do Arch Linux.
 
 </h3>
@@ -16,13 +16,15 @@
 
 O **ArchAppImage** facilita o empacotamento de programas no no formato **AppImage** usando pacotes 
 do Arch Linux. Ele automatiza a criação de pacotes e melhora a compatibilidade com o sistema, além
-de contar com vários métodos de criação de AppImage e inclusão do **GLibC**.
+de contar com vários métodos de criação de AppImage e inclusão do **GLibC**. Também é possível
+empacotar programas autocontidos em **TarBall** para quem optar por AppImages mais leves, porém
+com uma menor garantia de funcionalidade, por não incluir o **GLibC**. 
 
 ## 🎯 Objetivo
 
 O objetivo do **ArchAppImage** é oferecer uma solução simplificada para facilitar a criação de 
-**AppImage** via Conteiner em qualquer sistema, reduzindo a complexidade do processo e
-garantindo maior compatibilidade entre vários sistemas Linux.
+**AppImage** em qualquer sistema usando vários métodos, principalmente via contêiner, reduzindo
+a complexidade do processo e garantindo maior compatibilidade entre vários sistemas Linux.
 
 ## 💡 Motivação
 
@@ -39,22 +41,24 @@ separado do seu host para a criação de Appimage ou uma VM dedicada para isso.
 próprio recurso ao AppImage, pois assim é possível usar o **ld-linux** para abrir os programas.
 
 - O projeto **ArchImage** é uma excelente ferramenta de criação de AppImage. Mas, segundo meus
- testes, o desempenho e o modo como ele funcionava, não era satisfatório e as vezes precisava 
- esperar muito tempo para saber se o empacotamento funcionou. Eu decidi que eu queria uma solução
- extremamente rápida para saber se realmente deu certo as configurações antes mesmo de 
- empacotar o AppImage.
+testes, o desempenho e o modo como ele funcionava, não era satisfatório e as vezes precisava 
+esperar muito tempo para saber se o empacotamento ia funcionar. Por isso, eu decidi que eu 
+queria uma solução extremamente rápida para criar AppImages sem precisar esperar o AppImage 
+empacotar de imediato antes de saber se o programa vai funcionar perfeitamente depois
+que o AppImage for criado.
 
 - A ideia de empacotar por **Conteiner** funciona bem, mas nem todos os programas precisam ser
-empacotados como conteiner, então é necessário um modo de empacotamento que criasse o AppImage, sem
-precisar de conteiner. 
+empacotados dessa forma, então é necessário um modo de empacotamento que criasse o AppImage, sem
+precisar de um contêiner para isso. 
 
 - Soluções como bwrap, podem falhar em sistemas com restrições de **namespaces** e não funcionarão.
-Uma solução é o proot, que é um pouco mais lento para iniciar o programa no conteiner, mas
+Uma solução é o proot, que é um pouco mais lento para iniciar programas via conteiner, mas que é
 totalmente funcional. 
 
-- Não é possível a execução do Junest usando superusuário. É preciso uma conta de usuário comum para
-poder executar o AppImage com o Junest. Distros modulares como o Puppy costumam usar conta root por
-padrão, o que faz do AppImage incompatível com o sistema sem uma conta de usuário comum.
+- Não é possível a execução do **Junest** usando superusuário. É preciso uma conta de usuário comum para
+poder executar o AppImage. Distros modulares como o Puppy costumam usar conta root por
+padrão, o que faz do AppImage baseado no Junest incompatível com o sistema sem uma conta
+de usuário comum.
 
 - Alguns programas podem precisar acessar o sistema host para poder realizar alguma função no sistema.
 Eles podem acabar assumindo o conteiner como se fosse o host.
@@ -79,37 +83,49 @@ Eles podem acabar assumindo o conteiner como se fosse o host.
 ## 🚀 Características e Recursos
 
 - O Projeto conta com uma interface de linha de comando para a configuração mais básica. Os ajustes
-mais refinados devem ser feitos no script de construção normalmente conforme a necessidade.
-- Um script de contrução até o momento: **APP-ArchAppImage**.
-- São quatro tipos de **AppRun** até o momento:
-   - **AppRun_bwrap** - conteiner bwrap.
-   - **AppRun_bwrap_proot** - conteiner bwrap com proot como fallbak.
-   - **AppRun_junest** - conteiner junest.
-   - **AppRun_proot** - conteiner proot.
-   - **AppRun_default** - modo padrão, sem conteiner.
+mais refinados devem ser feitos normalmente no script de construção conforme a necessidade.
 
-- Não há a necessidade de separar os projetos em diretórios.
-- Pode ser usado o mesmo conteiner para empacotar vários AppImages diferentes,
+- Várias opções de Scripts de Construção:
+
+   - ✅ **APP-ArchAppImage** - usa contêiner junest.
+   - ✅ **APP-Tarball2AppImage** - cria AppImage com pacotes em tarball.
+
+- São vários tipos de **AppRun** disponíveis:
+
+   - ✅ **AppRun_bwrap** - conteiner bwrap.
+   - ✅ **AppRun_bwrap_proot** - conteiner bwrap com proot como fallbak.
+   - ✅ **AppRun_default** - modo padrão, sem conteiner.
+   - ✅ **AppRun_junest** - conteiner junest.
+   - ✅ **AppRun_proot** - conteiner proot.
+   - ✅ **AppRun_tarball** - para AppImage em tarball.
+
+- Não há a necessidade de separar os projetos de **AppImage** em vários diretórios.
+Pode ser usado o mesmo contêiner para empacotar vários AppImages diferentes,
 economizando espaço em disco.
-- Também pode-se usar um conteiner sepadado para:
-   - **Mutilib** - para programas que precisam de multilib.
-   - **ChaoticAUR** - para programas do repositório do ChaoticAUR.
-   - **ArchLinuxCN** - para programas do repositório do ArchLinuxCN.
-   - **AUR** - para programas que serão compilados do repositório AUR.
+
 - Se for preciso, pode ser criado um conteiner só para uma aplicação específica da mesma forma
- que é feito no projeto do **ArchImage** e escolher se vai ser preciso o **mutilib**,
- **ChaoticAUR**, **ArchLinuxCN** ou **AUR** para a construção do AppImage.
+ que é feito no projeto do **ArchImage** e escolher se vai ser preciso uma dessas opções
+ para a construção do AppImage:
+
+   - ✅ **Mutilib** - para programas que precisam de multilib.
+   - ✅ **ChaoticAUR** - para programas do repositório do ChaoticAUR.
+   - ✅ **ArchLinuxCN** - para programas do repositório do ArchLinuxCN.
+   - ✅ **AUR** - para programas que serão compilados do repositório AUR.
+
 - Possui resolução automática de dependências, podendo ser ajustado usando diferentes níveis 
 de busca por dependências.
+
 - Em programas binários, pode ser habilitado uma busca por dlls, que pode ajudar a executar o
 programa usando menos níveis de busca por dependências, o que pode reduzir o tamanho do AppImage.
+
 - Você pode ativar a autointegração na área de trabalho e a autointegração de inicialização
 durante a primeira execução do AppImage.
+
 - Possui uma forma alternativa para configurar a detecção correta do idioma de forma definitiva em
 caso de programas que não detectam o idioma de forma alguma.
+
 - O método padrão conta com um método automático para resolver o cache do gdk-pixbuf2 para 
 programas que usam gtk.
-- Opções de ajustes relacionados a programas que usam python.
 
 ## 🛠️ Instalação
 
@@ -167,25 +183,12 @@ necessário verificar seu funcionamento a procura de algum bug ou alguma inconsi
 
    Para uma deparação mais aprimorada, consulte: https://www.bnikolic.co.uk/blog/linux-ld-debug.html
 
+## 📖 Documentação Completa
 
+Para mais detalhes sobre o uso e as funcionalidades do **ArchAppImage** e 
+como solucionar problemas, consulte a documentação oficial:
 
-## ⚠️ Solução de Problemas
-
-Existe um documento do Gist que pode ajudar a solucionar alguns problemas dusrante a criação
-de um AppImage:
-- 📜 [Limitações e Soluções para a Criação de AppImage](https://gist.github.com/LinuxDicasPro/5da0c06a41791f1b6a8c15bbd69d442d)
-
-Na documentação oficial do AppImage, esses documentos podem ajudar:
-   - 📌 [Problemas com Fuse](https://docs.appimage.org/user-guide/troubleshooting/fuse.html)
-   - 📌 [Problemas com Limitação de Namespace](https://docs.appimage.org/user-guide/troubleshooting/electron-sandboxing.html)
-
-
-## 📖 Documentação
-
-Para mais detalhes sobre o uso e as funcionalidades do **ArchAppImage**,
-consulte a documentação oficial:
-
-📜 [Documentação Completa](https://github.com/LinuxDicasPro/ArchAppImage/wiki) ( Ainda não Escrito )
+📜 [Documentação Oficial](https://github.com/LinuxDicasPro/ArchAppImage/wiki)
 
 ## 📷 Capturas de Tela
 
@@ -199,8 +202,11 @@ consulte a documentação oficial:
 
 - Suporte a **NVidia** no modo de Conteiner.
 - Mais scripts alternativos de empacotamento.
+- Empacotamento usando sharun.
 - Ferramentas extras.
 - Possível implementação com debootstrap.
+- Reempacotador de AppImage para adição de modificações.
+- Possível ferramenta de autointegração.
 
 ## 🤝 Contribuindo
 
@@ -244,10 +250,10 @@ siga as diretrizes abaixo para garantir um fluxo organizado e eficiente.
 
 ### 📢 Dicas para um Pull Request bem-sucedido
 
-✔️ **Explique suas mudanças:** Escreva um título e uma descrição detalhada do que foi alterado e por quê.  
-✔️ **Siga o padrão do código:** Mantenha a consistência do projeto.  
-✔️ **Faça commits pequenos e organizados:** Isso facilita a revisão.  
-✔️ **Revise seu código antes de enviar:** Evite bugs e erros desnecessários.  
+- ✅ **Explique suas mudanças:** Escreva um título e uma descrição detalhada do que foi alterado e por quê.  
+- ✅ **Siga o padrão do código:** Mantenha a consistência do projeto.  
+- ✅ **Faça commits pequenos e organizados:** Isso facilita a revisão.  
+- ✅ **Revise seu código antes de enviar:** Evite bugs e erros desnecessários.  
 
 Agradecemos sua contribuição! 🚀✨
 

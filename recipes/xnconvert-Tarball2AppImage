@@ -1,0 +1,251 @@
+#!/bin/bash
+#
+# ArchAppImage Tarball2AppImage - Generate AppImage using tarball packages
+#
+# Require:
+#   - bash >= 4.x
+#   - coreutils
+#   - curl
+#   - grep
+#   - sed
+#   - tar
+#   - wget
+#
+# By Mauricio Ferrari (m10ferrari1200@gmail.com)
+#
+###############################################################################
+
+CWD="$PWD"
+
+set -e
+
+pkgname=xnconvert
+aur_name=  # optional
+version=   # optional
+
+enable_graphic_sudo=0                # 0 (false) or 1 (true)
+enable_auto_integration=0            # 0 (false) or 1 (true)
+enable_auto_integration_autostart=0  # 0 (false) or 1 (true)
+autostart_parms=  # optional
+
+local_icon=     # optional
+local_desktop=  # optional
+
+custom_desktop_link=  # optional
+custom_icon_link=     # optional
+
+custom_apprun=    # optional
+custom_command=   # optional - /$pkgname*/$pkgname.sh
+custom_parms=     # optional
+
+custom_search_link=  # optional
+custom_link=         # optional
+reference_search=    # optional
+custom_regex=        # optional
+
+dest_dir=  # optional
+
+recreate_appdir=0   # 0 (false) or 1 (true)
+create_appimage=1   # 0 (false) or 1 (true)
+
+###############################################################################
+
+
+test -z "$pkgname" && exit 1
+
+tarballs="$CWD/tarball_packages"
+tool_dirs="$CWD/tools"
+appdir="$CWD/$pkgname.AppDir"
+dest_dir="${dest_dir:-"$CWD"}"
+
+mkdir -pv "$tool_dirs" "$appdir" "$dest_dir" "$tarballs"
+
+search_link="https://aur.archlinux.org/cgit/aur.git/tree/PKGBUILD?h=${aur_name:-$pkgname}"
+regex="${custom_regex:-"([0-9]+[.])+[0-9]+"}"
+reference="${reference_search:-"pkgver="}"
+
+test -f "$tool_dirs/AppRun_tarball" || wget -c -O "$tool_dirs/AppRun_tarball" \
+    "https://raw.githubusercontent.com/LinuxDicasPro/ArchAppImage/refs/heads/master/tools/AppRun_tarball"
+
+
+# ### FUNCTIONS ### ###################################################################################################
+
+
+function _extra_config
+{
+    sed -i "s|Icon=.*|Icon=$pkgname|g" "$appdir"/*.desktop # added extra config
+}
+
+
+function _create_desktop_fallback
+{
+    dname=( ${pkgname//-/ })
+    desk_name="${dname[@]^}"
+
+    printf \
+"[Desktop Entry]
+Version=1.0
+Type=Application
+Name=$desk_name
+Comment=$desk_name
+Exec=$pkgname
+Icon=$pkgname
+Categories=Utility;
+Terminal=true
+StartupNotify=true
+" > "$appdir/$pkgname.desktop"
+}
+
+
+function _download_icon_fallback
+{
+    wget -c -O "$appdir/$pkgname.png" \
+        https://raw.githubusercontent.com/LinuxDicasPro/ArchAppImage/refs/heads/master/logo.png
+}
+
+
+# ### DOWNLOAD APPIMAGE TOOLS ### #####################################################################################
+
+
+test -f "$tool_dirs/appimagetool" || {
+    wget -q --show-progress -O "$tool_dirs/appimagetool" \
+        https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+    chmod -v +x "$tool_dirs/appimagetool"
+}
+
+test -f "$tool_dirs/runtime" || wget -q --show-progress -O "$tool_dirs/runtime" \
+    https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64
+
+
+# ### DOWNLOAD & EXTRACT PACKAGE ### ##################################################################################
+
+save_link="$(links -dump "${custom_search_link:-$search_link}")"
+pkgver=${version:-"$(grep -Eom1 "$regex" <(grep "$reference" <<< "$save_link"))"}
+
+test -z "$custom_link" && {
+    : "$(grep -Eo "http.*pkgver.*" <<< "$save_link")"; i=${_%\"*}; package_link="${i%)}"
+}
+
+eval "package_link=\"${custom_link:-$package_link}\""
+
+test -z "$pkgver" && {
+    echo "Version not found!"
+    exit 1
+}
+
+wget -c -P "$tarballs" "$package_link"
+package_file=${package_link##*/}
+
+test $recreate_appdir -eq 0 || {
+    rm -vrf "$appdir"
+    mkdir -pv "$appdir"
+}
+
+type=$(file -b --mime-type "$tarballs/$package_file")
+
+case "$type" in
+  application/zip)
+    unzip -o "$tarballs/$package_file" -d "$appdir"
+    ;;
+  *)
+    tar -axvf "$tarballs/$package_file" -C "$appdir"
+    ;;
+esac
+
+
+# ### COPY ICON DESKTOP FILE & APPRUN ### #############################################################################
+
+
+test -z "$local_desktop" && {
+    find "$appdir" -type f \( -iname "*.desktop" \) -exec cp -v {} "$appdir" \;
+} || cp -v "$local_desktop" "$appdir"
+
+test -z "$local_icon" && {
+    find "$appdir" -type f \( -iname "*$pkgname*.svg" -o -iname "*$pkgname*.png" \) -exec cp -v {} "$appdir" \;
+} || cp -v "$local_icon" "$appdir"
+
+shopt -s failglob
+
+( printf "$appdir/"*.{desktop,svg} ) || ( printf "$appdir/"*.{desktop,png} ) || {
+    test -z "$custom_icon_link" -a -z "$local_icon" -o -z "$custom_desktop_link" -a -z "$local_desktop" && \
+        save_root_files="$(links -dump "https://aur.archlinux.org/cgit/aur.git/tree/?h=${aur_name:-$pkgname}")"
+}
+
+( printf "$appdir/"*.svg ) || ( printf "$appdir/"*.png ) || {
+    test -z "$custom_icon_link" && {
+        ico="$(grep -Eo ".*[.](sv|pn)g" <<< "$save_root_files" )"
+        wget -c -O "$appdir/${ico##* }" "https://aur.archlinux.org/cgit/aur.git/plain/${ico##* }?h=${aur_name:-$pkgname}" || _download_icon_fallback
+    } || wget -c -P "$appdir" "$custom_icon_link"
+}
+
+( printf "$appdir/"*.desktop ) || {
+    test -z "$custom_desktop_link" && {
+        desk="$(grep -Eo ".*[.]desktop" <<< "$save_root_files" )"
+        wget -c -O "$appdir/${desk##* }" "https://aur.archlinux.org/cgit/aur.git/plain/${desk##* }?h=${aur_name:-$pkgname}" || _create_desktop_fallback
+    } || wget -c -P "$appdir" "$custom_desktop_link"
+}
+
+shopt -u failglob
+
+cp -nv "${custom_apprun:-"$tool_dirs/AppRun_tarball"}" "$appdir/AppRun"
+chmod +x "$appdir/AppRun"
+
+test -z "$custom_apprun" -a -z "$custom_command" && {
+    while IFS= read -r f; do
+        grep -Eo 'shell script' <(file "$f") && res_shell+=("$f")
+        grep -Eo 'ELF' <(file "$f") && res_elf+=("$f")
+    done < <(find "$appdir" -type f -iname "$pkgname*")
+}
+
+test -z "$custom_command" && {
+    test -z "${res_shell[*]}" && {
+        sed -i "s|PROGRAM=.*|PROGRAM=\$APPDIR${res_elf[0]/"$appdir"/}|" "$appdir/AppRun"
+    } || {
+        sed -i "s|PROGRAM=.*|PROGRAM=\$APPDIR${res_shell[0]/"$appdir"/}|" "$appdir/AppRun"
+    }
+} || sed -i "s|PROGRAM=.*|PROGRAM=\$APPDIR$custom_command|" "$appdir/AppRun"
+
+desktop_file="$(printf '%s' "$appdir"/*desktop)"
+icon_file="$(printf '%s' "$appdir"/*.{sv,pn}g)"
+desktop="${desktop_file##*/}"
+icon="${icon_file##*/}"
+
+test -z "$custom_parms" || sed -i "s|PARM=.*|PARM=\"$custom_parms\"|" "$appdir/AppRun"
+
+test $enable_graphic_sudo -eq 0 || sed -i "s|ENABLE_SUDO=0|ENABLE_SUDO=1|" "$appdir/AppRun"
+
+test $enable_auto_integration -eq 0 || {
+    sed -i "s|AUTO_INTEGRATION=0|AUTO_INTEGRATION=1|" "$appdir/AppRun"
+
+    sed -i "s|DESKTOP=.*|DESKTOP=$desktop|" "$appdir/AppRun"
+    sed -i "s|ICON=.*|ICON=$icon|" "$appdir/AppRun"
+
+    test $enable_auto_integration_autostart -eq 0 || {
+        sed -i "s|AUTOSTART=0|AUTOSTART=1|" "$appdir/AppRun"
+
+        test -z "$autostart_parms" || sed -i "s|AUTOSTART_PARM=.*|AUTOSTART_PARM=$autostart_parms|" "$appdir/AppRun"
+    }
+}
+
+_extra_config
+
+
+# ### CREATE APPIMAGE ###  ############################################################################################
+
+
+test $create_appimage -eq 0 || {
+    mapfile -t n < <(grep -E "^Name=" "$appdir"/*.desktop)
+    name="${n[0]/Name=/}"
+
+    UPINFO="gh-releases-zsync|${name// /_}_AppImage|latest|*x86_64.AppImage.zsync"
+
+    ARCH=x86_64 "$tool_dirs/appimagetool" \
+        --runtime-file "$tool_dirs/runtime" \
+        --comp zstd --mksquashfs-opt -Xcompression-level --mksquashfs-opt 20 \
+        -u "$UPINFO" "$appdir" "${dest_dir:-$CWD}/${name// /_}-$pkgver-Tarball2AppImage-$(date +"%d_%b_%Y")-x86_64.AppImage"
+
+    mv -v "${name// /_}-$pkgver-Tarball2AppImage-$(date +"%d_%b_%Y")-x86_64.AppImage.zsync" "${dest_dir:-$CWD}" || true
+}
+
+printf "Finished!\n"
+exit 0

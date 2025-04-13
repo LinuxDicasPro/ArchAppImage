@@ -1,27 +1,19 @@
 #!/bin/sh
 #
-# AppRun script for AppImage using junest with proot as a fallback and POSIX-compliant with sh
+# AppRun script for AppImage using junest with fallback proot and {{{ 100% POSIX }}}
 #
 # By Mauricio Ferrari (m10ferrari1200@gmail.com)
 #
-#################################################################################################
+#########################################################################################
 
 APPDIR="$(cd -- "${0%/*}" && pwd -P)"
 
-#_______________________________________________
-
-# PROGRAM
-# /usr/bin/program
-
 PROGRAM=
-
 AUTO_INTEGRATION=0
 AUTOSTART=0
 AUTOSTART_PARM=
 DESKTOP=
 ICON=
-
-#_______________________________________________
 
 
 if test ${AUTO_INTEGRATION:-0} -eq 1 && command -v grep >/dev/null && command -v sed >/dev/null
@@ -37,22 +29,17 @@ then
 
     if ! grep -q "$APPIMAGE" "$local_desktop/$DESKTOP"
     then
-        sed -i "s|Exec=[^ ]*|Exec=${APPIMAGE}|" "$local_desktop/$DESKTOP"
-        sed -i "s|Icon=.*|Icon=${ICON%.*}|" "$local_desktop/$DESKTOP"
+        sed -i -e "s|Exec=[^ ]*|Exec=${APPIMAGE}|" -e "s|Icon=.*|Icon=${ICON%.*}|" "$local_desktop/$DESKTOP"
 
         if test ${AUTOSTART:-0} -eq 1
         then
             cp -nv "$APPDIR/$DESKTOP" "$local_autostart"
 
             autoparm=${AUTOSTART_PARM:+" $AUTOSTART_PARM"}
-            sed -i "s|Exec=[^ ]*|Exec=${APPIMAGE}${autoparm}|" "$local_autostart/$DESKTOP"
-            sed -i "s|Icon=.*|Icon=${ICON%.*}|" "$local_desktop/$DESKTOP"
+            sed -i -e "s|Exec=[^ ]*|Exec=${APPIMAGE}${autoparm}|" -e "s|Icon=.*|Icon=${ICON%.*}|" "$local_desktop/$DESKTOP"
         fi
 
-        if command -v update-desktop-database >/dev/null
-        then
-            update-desktop-database -q >/dev/null 2>&1
-        fi
+        command -v update-desktop-database >/dev/null && update-desktop-database -q >/dev/null 2>&1
 
         if test -e "usr/share/icons/hicolor/icon-theme.cache" && command -v gtk-update-icon-cache >/dev/null
         then
@@ -114,14 +101,12 @@ PROOT_BINDS="--bind=/dev \
     --bind=/usr/share/themes \
     --bind=/var"
 
-if command -v unshare >/dev/null 2>&1 && ! unshare --user -p /bin/true >/dev/null 2>&1; then
+if command -v unshare >/dev/null 2>&1 && ! unshare --user -p /bin/true >/dev/null 2>&1
+then
     printf "using proot ...\n"
-    "$APPDIR/junest/bin/junest" proot -n -b "$PROOT_BINDS" -- "$PROGRAM" "$@"
+    "$APPDIR/junest/bin/junest" proot -n -b $PROOT_BINDS -- "$PROGRAM" "$@"  # parms no "parms"
 else
     printf "using bwrap ...\n"
-    if command -v xhost
-    then
-        xhost -SI:localuser:$USER  # debian
-    fi
-    "$APPDIR/junest/bin/junest" -n -b "$BWRAP_BINDS" -- "$PROGRAM" "$@"
+    command -v xhost && xhost -SI:localuser:"$USER"  # debian
+    "$APPDIR/junest/bin/junest" -n -b $BWRAP_BINDS -- "$PROGRAM" "$@"  # parms no "parms"
 fi

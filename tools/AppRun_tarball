@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 #
-# AppRun script for AppImage using proot and {{{ 100% POSIX }}}
+# Default AppRun for Tarball AppImage and {{{ 100% POSIX }}}
 #
 # By Mauricio Ferrari (m10ferrari1200@gmail.com)
 #
@@ -9,12 +9,20 @@
 APPDIR="$(cd -- "${0%/*}" && pwd -P)"
 
 PROGRAM=
+PARM=
+ENABLE_SUDO=0
 AUTO_INTEGRATION=0
 AUTOSTART=0
 AUTOSTART_PARM=
 DESKTOP=
 ICON=
 
+
+if test "$UID" -ne 0 && command -v pkexec && test ${ENABLE_SUDO:-0} -eq 1
+then
+  pkexec env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" "$APPIMAGE" "$@"
+  exit
+fi
 
 if test ${AUTO_INTEGRATION:-0} -eq 1 && command -v grep >/dev/null && command -v sed >/dev/null
 then
@@ -48,33 +56,4 @@ then
     fi
 fi
 
-export LIBRARY_PATH="$APPDIR/lib:$APPDIR/lib64:$APPDIR/usr/lib:$APPDIR/usr/lib64"
-
-PROOT_OPTIONS="-R $APPDIR \
-    --bind=/dev \
-    --bind=/sys \
-    --bind=/tmp \
-    --bind=/proc \
-    --bind=/etc/resolv.conf \
-    --bind=/etc/hosts \
-    --bind=/etc/nsswitch.conf \
-    --bind=/etc/passwd \
-    --bind=/etc/group \
-    --bind=/etc/machine-id \
-    --bind=/etc/asound.conf \
-    --bind=/etc/localtime \
-    --bind=/lib/firmware \
-    --bind=/home \
-    --bind=/media \
-    --bind=/mnt \
-    --bind=/opt \
-    --bind=/run \
-    --bind=/etc/fonts \
-    --bind=/usr/lib/locale \
-    --bind=/usr/share/font-config \
-    --bind=/usr/share/fonts \
-    --bind=/usr/share/themes \
-    --bind=/var
-"
-
-exec "$APPDIR/usr/lib/ld-linux-x86-64.so.2" --inhibit-cache --library-path "${LIBRARY_PATH}" "$APPDIR/usr/bin/proot-x86_64" $PROOT_OPTIONS "$PROGRAM" "$@"  # parms no "parms"
+exec "$PROGRAM" $PARM "$@"

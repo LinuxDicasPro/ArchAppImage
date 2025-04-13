@@ -30,10 +30,8 @@ APPDIR=\"\$(cd \"\${0%/*}\" && echo \$PWD)\"
 
 PROGRAM=
 
-export PATH_MAPPING=
-
 export UNION_PRELOAD=\"\$APPDIR\"
-export LD_PRELOAD=\"\$APPDIR/libunionpreload.so \$APPDIR/path-mapping.so\"
+export LD_PRELOAD=\"\$APPDIR/libunionpreload.so\"
 
 export XDG_DATA_DIRS=\"\$APPDIR/usr/share:/usr/share\"
 export XDG_CONFIG_DIRS=\"\$APPDIR/etc/xdg:/etc/xdg\"

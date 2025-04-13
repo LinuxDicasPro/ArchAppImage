@@ -22,9 +22,9 @@
 CWD="$PWD"
 set -e
 
-package_name=
+package_name=mousepad
 binary_name=   # optional
-dependences=   # optional
+dependences="gtk3 gdk-pixbuf2"   # optional
 
 use_font="noto-fonts"
 # use_font="gnu-free-fonts"
@@ -32,12 +32,12 @@ use_font="noto-fonts"
 use_lib_browser_launcher=0  # 0 (false) or 1 (true)
 use_lib_audio_keywords=0    # 0 (false) or 1 (true)
 
-level_search_deps=1      # auto detect dependences 1 - 2 - 3 ...
+level_search_deps=2      # auto detect dependences 1 - 2 - 3 ...
 level_search_add_deps=1  # detect add dependences 1 - 2 - 3 ...
 
-mode="default"  # default - conteiner
+mode="conteiner"  # default - conteiner
 
-use_apprun_type=0  # mode conteiner: 0 (junest) - 1 (bwrap) - 2 (proot) - 3 (bwrap_proot_fallback)
+use_apprun_type=3  # mode conteiner: 0 (junest) - 1 (bwrap) - 2 (proot) - 3 (bwrap_proot_fallback)
 
 enable_auto_integration=0            # 0 (false) or 1 (true)
 enable_auto_integration_autostart=0  # 0 (false) or 1 (true)
@@ -71,13 +71,13 @@ remove_others_libs_bloatwares=   # optional - "dir1|dir2|lib1"
 remove_others_bins_bloatwares=   # optional - "bin1|bin2|bin3"
 remove_others_etc_bloatwares=    # optional - "dir1|dir2|file"
 
-config_all_locales=0  # mode conteiner: 0 (false) - 1 (true) - 2 (autodetect)
+config_all_locales=2  # mode conteiner: 0 (false) - 1 (true) - 2 (autodetect)
 
 noupdate=0           # 0 (false) or 1 (true)
-no_save_bins=0       # 0 (false) or 1 (true)
-use_ldd_search=0     # 0 (false) or 1 (true)
+no_save_bins=1       # 0 (false) or 1 (true)
+use_ldd_search=1     # 0 (false) or 1 (true)
 recreate_appdir=0    # 0 (false) or 1 (true)
-create_appimage=0    # 0 (false) or 1 (true)
+create_appimage=1    # 0 (false) or 1 (true)
 
 appimage_dest_dir=  # optional
 
