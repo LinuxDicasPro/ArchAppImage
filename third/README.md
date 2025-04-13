@@ -1,32 +1,32 @@
-# Diretório `third`
+# 📁 Diretório `third`
 
-O diretório `third` é dedicado a ferramentas de terceiros que podem ser integradas ao projeto.
+O diretório **`third`** é dedicado a ferramentas de terceiros que podem ser integradas ao projeto.
 Aqui, você pode adicionar scripts ou qualquer outro recurso externo que seja necessário para
  complementar as funcionalidades do sistema.
 
-## O que pode ser incluído?
+## 📥 O que pode ser incluído?
 
-- **Scripts e Utilitários** que auxiliam ou melhoram a compatibilidade do projeto.
-- **Recursos Extras** que expandem as funcionalidades do projeto.
-- **Novos Métodos** de empacotamento que atendam a propósta do projeto.
+- **`Scripts e Utilitários`** que auxiliam ou melhoram a compatibilidade do projeto.
+- **`Recursos Extras`** que expandem as funcionalidades do projeto.
+- **`Novos Métodos`** de empacotamento que atendam a propósta do projeto.
 
 
-## Como organizar?
+## 🗃️ Como organizar?
 
 Para manter a organização, recomenda-se a seguinte estrutura:
 
-```
-third/
-├── recurso1/
-│   ├── README.md
-│   ├── exemplo1/
-│   └── exemplo2/
-└── recurso2/
-    ├── README.md
-    └── script1.sh
+```diff
++ third/
+  ├── recurso1/
+  │   ├── README.md
+  │   ├── exemplo1/
+  │   └── exemplo2/
+  └── recurso2/
+      ├── README.md
+      └── script1.sh
 ```
 
-## Considerações
+## 🔍 Considerações
 
 - Certifique-se de que todas as ferramentas incluídas possuem licença compatível 
 com o projeto.
