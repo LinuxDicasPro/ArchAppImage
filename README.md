@@ -212,13 +212,14 @@ incorporados e como solucionar problemas, consulte a documentação na wiki do g
 
 ## 📝 Próximas Implementações
 
-- ✏️ Suporte a **`NVidia`** no modo de Conteiner.
+- ✏️ Suporte a **`NVidia`** no modo de Conteiner -> a caminho.
 - ✏️ Mais scripts alternativos de empacotamento.
 - ✏️ Empacotamento usando **`sharun`**.
 - ✏️ Ferramentas extras.
 - ✏️ Possível implementação com debootstrap.
 - ✏️ Reempacotador de AppImage para adição de modificações.
 - ✏️ Possível ferramenta de autointegração.
+- ✏️ Possível empacotamento usando flatpack.
 - ✏️ Interface de desenvolvimento de Appimage.
 
 ## 🤝 Contribuindo

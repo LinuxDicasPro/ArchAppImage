@@ -10,15 +10,15 @@ env_before="$(export -p | sort)"
 APPDIR="$(cd -- "${0%/*}" && pwd -P)"
 
 PROGRAM=
-AUTO_INTEGRATION=0
-AUTOSTART=0
+PARM=
+AUTO_INTEGRATION=${AUTO_INTEGRATION:-0}
+AUTOSTART=${AUTOSTART:-0}
 AUTOSTART_PARM=
 DESKTOP=
 ICON=
 
-use_system_python=0
 
-if test ${AUTO_INTEGRATION:-0} -eq 1 && command -v grep >/dev/null && command -v sed >/dev/null
+if test $AUTO_INTEGRATION -eq 1 && command -v grep >/dev/null && command -v sed >/dev/null
 then
     local_desktop=~/.local/share/applications
     local_icon=~/.local/share/pixmaps
@@ -33,7 +33,7 @@ then
     then
         sed -i -e "s|Exec=[^ ]*|Exec=${APPIMAGE}|" -e "s|Icon=.*|Icon=${ICON%.*}|" "$local_desktop/$DESKTOP"
 
-        if test ${AUTOSTART:-0} -eq 1
+        if test $AUTOSTART -eq 1
         then
             cp -nv "$APPDIR/$DESKTOP" "$local_autostart"
 
@@ -183,4 +183,4 @@ export PATH="$APPDIR/usr/bin:$APPDIR/usr/libexec${JAVA_HOME:+:$JAVA_HOME/bin}:$P
 
 command -v grep >/dev/null && export -p | sort | grep -Fvx "$env_before"
 
-test -z "$PROGRAM" || exec "$APPDIR/usr/lib/ld-linux-x86-64.so.2" --inhibit-cache --library-path "${LIBRARY_PATH}" "$PROGRAM" "$@"
+test -z "$PROGRAM" || exec "$APPDIR/usr/lib/ld-linux-x86-64.so.2" --inhibit-cache --library-path "${LIBRARY_PATH}" "$PROGRAM" $PARM "$@"

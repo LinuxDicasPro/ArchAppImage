@@ -43,7 +43,7 @@ custom_link=         # optional
 reference_search=    # optional
 custom_regex=        # optional
 
-dest_dir=  # optional
+appimage_dest_dir=  # optional
 
 recreate_appdir=0   # 0 (false) or 1 (true)
 create_appimage=0   # 0 (false) or 1 (true)
@@ -56,9 +56,9 @@ test -z "$pkgname" && exit 1
 tarballs="$CWD/tarball_packages"
 tool_dirs="$CWD/tools"
 appdir="$CWD/$pkgname.AppDir"
-dest_dir="${dest_dir:-"$CWD"}"
+appimage_dest_dir="${appimage_dest_dir:-"$CWD"}"
 
-mkdir -pv "$tool_dirs" "$appdir" "$dest_dir" "$tarballs"
+mkdir -pv "$tool_dirs" "$appdir" "$appimage_dest_dir" "$tarballs"
 
 search_link="https://aur.archlinux.org/cgit/aur.git/tree/PKGBUILD?h=${aur_name:-$pkgname}"
 regex="${custom_regex:-"([0-9]+[.])+[0-9]+"}"
@@ -216,16 +216,14 @@ test $enable_graphic_sudo -eq 0 || sed -i "s|ENABLE_SUDO=0|ENABLE_SUDO=1|" "$app
 
 test $enable_auto_integration -eq 0 || {
     sed -i "s|AUTO_INTEGRATION=0|AUTO_INTEGRATION=1|" "$appdir/AppRun"
-
-    sed -i "s|DESKTOP=.*|DESKTOP=$desktop|" "$appdir/AppRun"
-    sed -i "s|ICON=.*|ICON=$icon|" "$appdir/AppRun"
-
     test $enable_auto_integration_autostart -eq 0 || {
         sed -i "s|AUTOSTART=0|AUTOSTART=1|" "$appdir/AppRun"
-
         test -z "$autostart_parms" || sed -i "s|AUTOSTART_PARM=.*|AUTOSTART_PARM=$autostart_parms|" "$appdir/AppRun"
     }
 }
+
+sed -i "s|DESKTOP=.*|DESKTOP=$desktop|" "$appdir/AppRun"
+sed -i "s|ICON=.*|ICON=$icon|" "$appdir/AppRun"
 
 _extra_config
 
@@ -242,9 +240,9 @@ test $create_appimage -eq 0 || {
     ARCH=x86_64 "$tool_dirs/appimagetool" \
         --runtime-file "$tool_dirs/runtime" \
         --comp zstd --mksquashfs-opt -Xcompression-level --mksquashfs-opt 20 \
-        -u "$UPINFO" "$appdir" "${dest_dir:-$CWD}/${name// /_}-$pkgver-Tarball2AppImage-$(date +"%d_%b_%Y")-x86_64.AppImage"
+        -u "$UPINFO" "$appdir" "${appimage_dest_dir:-$CWD}/${name// /_}-$pkgver-Tarball2AppImage-$(date +"%d_%b_%Y")-x86_64.AppImage"
 
-    mv -v "${name// /_}-$pkgver-Tarball2AppImage-$(date +"%d_%b_%Y")-x86_64.AppImage.zsync" "${dest_dir:-$CWD}" || true
+    mv -v "${name// /_}-$pkgver-Tarball2AppImage-$(date +"%d_%b_%Y")-x86_64.AppImage.zsync" "${appimage_dest_dir:-$CWD}" || true
 }
 
 printf "Finished!\n"

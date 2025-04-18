@@ -23,6 +23,8 @@ CWD="$PWD"
 set -e
 
 package_name=qbittorrent
+parms=  # optional
+
 binary_name=   # optional
 dependences=   # optional
 
@@ -49,6 +51,8 @@ enable_multilib=0     # 0 (false) or 1 (true)
 enable_chaoticaur=0   # 0 (false) or 1 (true)
 enable_archlinuxcn=0  # 0 (false) or 1 (true)
 enable_build_aur=0    # 0 (false) or 1 (true)
+
+use_custom_apprun=  # optional
 
 use_desktop_file=  # optional - "$CWD/usr/share/applications/desktopfile.desktop"
 use_icon_file=     # optional - "$CWD/usr/share/pixmaps/icon.png"
@@ -125,7 +129,7 @@ junest_file="$(
     )
 )"
 
-apprun="$(
+apprun="${use_custom_apprun:-"$(
     test "$mode" = "conteiner" && {
         select_apprun="AppRun_junest"
         test $use_apprun_type -eq 1 && select_apprun="AppRun_bwrap"
@@ -140,7 +144,7 @@ apprun="$(
         wget -q --show-progress -O "$tool_dirs/$select_apprun" \
             "https://raw.githubusercontent.com/LinuxDicasPro/ArchAppImage/refs/heads/master/tools/$select_apprun"
     )
-)"
+)"}"
 
 libselinux_link="https://repo.taiho.moe/selinux/$(
     mapfile -t l < <(
@@ -560,17 +564,17 @@ test -z "$desktop_file" && {
 cp -v "$apprun" "$appdir/AppRun"  # Bom recriar sempre
 chmod +x "$appdir/AppRun"
 
+sed -i "s|DESKTOP=.*|DESKTOP=$desktop|" "$appdir/AppRun"
+sed -i "s|ICON=.*|ICON=$icon|" "$appdir/AppRun"
+
 which_bin=$("$junest" -- bash -c "which $binary_name")
+
+test -z "$parms" || sed -i "s|PARM=.*|PARM=\"$parms\"|" "$appdir/AppRun"
 
 test $enable_auto_integration -eq 0 || {
     sed -i "s|AUTO_INTEGRATION=0|AUTO_INTEGRATION=1|" "$appdir/AppRun"
-
-    sed -i "s|DESKTOP=.*|DESKTOP=$desktop|" "$appdir/AppRun"
-    sed -i "s|ICON=.*|ICON=$icon|" "$appdir/AppRun"
-
     test $enable_auto_integration_autostart -eq 0 || {
         sed -i "s|AUTOSTART=0|AUTOSTART=1|" "$appdir/AppRun"
-
         test -z "$autostart_parms" || sed -i "s|AUTOSTART_PARM=.*|AUTOSTART_PARM=$autostart_parms|" "$appdir/AppRun"
     }
 }

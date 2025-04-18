@@ -11,8 +11,8 @@ APPDIR="$(cd -- "${0%/*}" && pwd -P)"
 PROGRAM=
 PARM=
 ENABLE_SUDO=0
-AUTO_INTEGRATION=0
-AUTOSTART=0
+AUTO_INTEGRATION=${AUTO_INTEGRATION:-0}
+AUTOSTART=${AUTOSTART:-0}
 AUTOSTART_PARM=
 DESKTOP=
 ICON=
@@ -20,11 +20,11 @@ ICON=
 
 if test "$UID" -ne 0 && command -v pkexec && test ${ENABLE_SUDO:-0} -eq 1
 then
-  pkexec env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" "$APPIMAGE" "$@"
-  exit
+    pkexec env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" "$APPIMAGE" "$@"
+    exit 0
 fi
 
-if test ${AUTO_INTEGRATION:-0} -eq 1 && command -v grep >/dev/null && command -v sed >/dev/null
+if test $AUTO_INTEGRATION -eq 1 && command -v grep >/dev/null && command -v sed >/dev/null
 then
     local_desktop=~/.local/share/applications
     local_icon=~/.local/share/pixmaps
@@ -39,7 +39,7 @@ then
     then
         sed -i -e "s|Exec=[^ ]*|Exec=${APPIMAGE}|" -e "s|Icon=.*|Icon=${ICON%.*}|" "$local_desktop/$DESKTOP"
 
-        if test ${AUTOSTART:-0} -eq 1
+        if test $AUTOSTART -eq 1
         then
             cp -nv "$APPDIR/$DESKTOP" "$local_autostart"
 

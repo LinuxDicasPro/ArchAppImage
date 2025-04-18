@@ -1,0 +1,49 @@
+#!/bin/sh
+
+APPDIR="$(cd -- "${0%/*}/nvidia_bootstrap" && pwd -P)"
+
+source ./extract_nvidia
+
+export LIBRARY_PATH="$APPDIR/lib:$APPDIR/lib64:$APPDIR/usr/lib:$APPDIR/usr/lib64"
+
+echo $BWRAP_BIND  # extract_nvidia
+echo $NV_LIBRARY  # extract_nvidia
+
+BWRAP_OPTIONS=" --unshare-user --share-net \
+    --bind $APPDIR / \
+    --dev-bind /dev /dev \
+    --ro-bind /sys /sys \
+    --proc /proc \
+    --ro-bind-try /etc/resolv.conf /etc/resolv.conf \
+    --ro-bind-try /etc/hosts /etc/hosts \
+    --ro-bind-try /etc/passwd /etc/passwd \
+    --ro-bind-try /etc/group /etc/group \
+    --bind-try /etc/OpenCL/vendors /etc/OpenCL/vendors \
+    --bind-try /etc/vulkan/icd.d /etc/vulkan/icd.d \
+    --bind-try /usr/share/vulkan/icd.d /usr/share/vulkan/icd.d \
+    --bind-try /lib/firmware /lib/firmware \
+    --bind-try /mnt /mnt \
+    --bind-try /tmp /tmp \
+    --bind-try /run /run \
+    --bind-try ${NV_DIR}/usr/bin_nvidia /usr/bin_nvidia \
+    $BWRAP_BIND \
+    --setenv LD_LIBRARY_PATH /usr/lib:/lib:/usr/lib64:/lib64${NV_LIBRARY:+:$NV_LIBRARY} \
+    --setenv PATH /usr/bin:/bin:/usr/sbin:/sbin:/usr/bin_nvidia
+"
+
+icd_path=$(grep -Hm1 '"library_path"' /etc/vulkan/icd.d/nvidia*.json /usr/share/vulkan/icd.d/nvidia*.json || true)
+icd_file=${icd_path%%:*}
+
+xhost +
+exec "$APPDIR/usr/lib/ld-linux-x86-64.so.2" --inhibit-cache --library-path "${LIBRARY_PATH}" \
+    "$APPDIR/usr/bin/bwrap" $BWRAP_OPTIONS bash -c "
+        __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia glxgears > /dev/null &
+        __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia VK_ICD_FILENAMES=$icd_file vkcube > /dev/null &
+        clear
+        while true; do
+            nvidia-smi
+            sleep 1
+            tput el; tput cuu1; tput el
+            tput cup 0 0
+        done
+    "

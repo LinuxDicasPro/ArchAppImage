@@ -1,0 +1,48 @@
+#!/bin/sh
+
+APPDIR="$(cd -- "${0%/*}/nvidia_bootstrap" && pwd -P)"
+
+source ./extract_nvidia
+
+export LIBRARY_PATH="$APPDIR/lib:$APPDIR/lib64:$APPDIR/usr/lib:$APPDIR/usr/lib64"
+
+echo $PROOT_BIND  # extract_nvidia
+echo $NV_LIBRARY  # extract_nvidia
+
+PROOT_OPTIONS="-R $APPDIR \
+    --bind=/dev \
+    --bind=/sys \
+    --bind=/tmp \
+    --bind=/proc \
+    --bind=/etc/resolv.conf \
+    --bind=/etc/hosts \
+    --bind=/etc/passwd \
+    --bind=/etc/group \
+    --bind=/etc/OpenCL/vendors \
+    --bind=/etc/vulkan/icd.d \
+    --bind=/usr/share/vulkan/icd.d \
+    --bind=/lib/firmware \
+    --bind=/home \
+    --bind=/mnt \
+    --bind=/run \
+    --bind=${NV_DIR}/usr/bin_nvidia:/usr/bin_nvidia \
+    $PROOT_BIND
+"
+
+icd_path=$(grep -Hm1 '"library_path"' /etc/vulkan/icd.d/nvidia*.json /usr/share/vulkan/icd.d/nvidia*.json || true)
+icd_file=${icd_path%%:*}
+
+exec "$APPDIR/usr/lib/ld-linux-x86-64.so.2" --inhibit-cache --library-path "${LIBRARY_PATH}" \
+    "$APPDIR/usr/bin/proot-x86_64" $PROOT_OPTIONS bash -c "
+        export PATH=\"/usr/bin:/bin:/usr/sbin:/sbin:/usr/bin_nvidia\"
+        export LD_LIBRARY_PATH=\"/usr/lib:/lib:/usr/lib64:/lib64${NV_LIBRARY:+:$NV_LIBRARY}\"
+        __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia glxgears > /dev/null &
+        __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia VK_ICD_FILENAMES=$icd_file vkcube > /dev/null &
+        clear
+        while true; do
+            nvidia-smi
+            sleep 1
+            tput el; tput cuu1; tput el
+            tput cup 0 0
+        done
+    "

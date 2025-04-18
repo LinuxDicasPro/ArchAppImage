@@ -1,0 +1,37 @@
+#!/bin/bash
+
+CWD="$PWD"
+set -e
+
+tool_dirs="$CWD/../tools"
+conteiner_rootfs="$CWD/nvidia_bootstrap"
+
+mkdir -pv "$tool_dirs"
+
+export JUNEST_HOME="$conteiner_rootfs"
+HOME="$CWD"
+
+junest="$(
+    printf '%s' "$tool_dirs/junest/bin/junest"
+
+    test -d "$tool_dirs/junest" && exit 0
+    (
+        git clone https://github.com/fsquillace/junest.git "$tool_dirs/junest"
+    )
+)"
+
+test -d "$conteiner_rootfs" || {
+    "$junest" setup
+    sed -i 's/#SigLevel/SigLevel/g' "$conteiner_rootfs/etc/pacman.conf"
+    sed -i 's/Required DatabaseOptional/Never/g' "$conteiner_rootfs/etc/pacman.conf"
+}
+
+"$junest" -f -- bash -c "
+    pacman -Syy
+    pacman --noconfirm -Syu
+    pacman -S --noconfirm mesa-utils vulkan-tools
+"
+
+mkdir -pv "$conteiner_rootfs/"{lib/firmware,{etc/,usr/share/}vulkan/icd.d,etc/OpenCL/vendors,junest}
+test -d "$tool_dirs/junest" || git clone https://github.com/fsquillace/junest.git "$tool_dirs/junest"
+cp -nav "$tool_dirs"/junest/{bin,lib} "$conteiner_rootfs/junest"

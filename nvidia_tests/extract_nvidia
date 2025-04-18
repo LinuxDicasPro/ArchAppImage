@@ -1,0 +1,37 @@
+#!/bin/bash
+
+CWD="$PWD"
+set -e
+
+NV_DIR="$CWD/nvidia_files"
+
+for nvidia_path in $(sort -u <( grep -Eo "/.*/" <( grep -Eo "/.*libnvidia.*so" <( ldconfig -p ))) )
+{
+    mkdir -pv "${NV_DIR}${nvidia_path%/}_nvidia"
+    test -e "${nvidia_path}nvidia" && cp -anv "${nvidia_path}nvidia" "${NV_DIR}${nvidia_path%/}_nvidia/nvidia"
+
+    for libs in \
+        ${nvidia_path}libEGL*nvidia*.so* \
+        ${nvidia_path}libGLES*nvidia*.so* \
+        ${nvidia_path}libGLX*nvidia*.so* \
+        ${nvidia_path}libcuda*.so* \
+        ${nvidia_path}libnvcuvid*.so* \
+        ${nvidia_path}libnvidia*.so* \
+        ${nvidia_path}libnvoptix*.so*
+    {
+        test -e "$libs" || continue
+        cp -anv "$libs" "${NV_DIR}${nvidia_path%/}_nvidia/${libs##*/}"
+    }
+
+    NV_LIBRARY="${NV_LIBRARY:+$NV_LIBRARY:}${nvidia_path%/}_nvidia"
+    BWRAP_BIND="${BWRAP_BIND:+$BWRAP_BIND }--bind-try ${NV_DIR}${nvidia_path%/}_nvidia ${nvidia_path%/}_nvidia"
+    PROOT_BIND="${PROOT_BIND:+$PROOT_BIND }--bind=${NV_DIR}${nvidia_path%/}_nvidia:${nvidia_path%/}_nvidia"
+}
+
+mkdir -pv "${NV_DIR}/usr/bin_nvidia"
+
+for bins in /usr/bin/nvidia*
+{
+    test -e "$bins" || continue
+    cp -anv "$bins" "${NV_DIR}/usr/bin_nvidia/${bins##*/}"
+}

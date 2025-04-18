@@ -1,3 +1,10 @@
+2015-04-18:
+    - change readme
+    - update recipes
+    - update AppRuns for add parm options
+    - add custom apprun options in APP-ArchAppImage
+    - add nvidia tests
+    - add env vars for system autointegration
 2025-04-13:
     - change readme
     - add AppRun_Universal to "extra" directory
