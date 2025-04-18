@@ -41,6 +41,6 @@ xhost +
         nvidia-smi
         sleep 1
         tput el; tput cuu1; tput el
-        tput cup 0 0
+        tput cup 2 0
     done
 "

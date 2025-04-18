@@ -43,6 +43,6 @@ exec "$APPDIR/usr/lib/ld-linux-x86-64.so.2" --inhibit-cache --library-path "${LI
             nvidia-smi
             sleep 1
             tput el; tput cuu1; tput el
-            tput cup 0 0
+            tput cup 2 0
         done
     "
