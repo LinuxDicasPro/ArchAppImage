@@ -11,7 +11,7 @@ for nvidia_path in $(sort -u <( grep -Eo "/.*/" <( grep -Eo "/.*libnvidia.*so" <
     BWRAP_BIND="${BWRAP_BIND:+$BWRAP_BIND }--bind-try ${NV_DIR}${nvidia_path%/}_nvidia ${nvidia_path%/}_nvidia"
     PROOT_BIND="${PROOT_BIND:+$PROOT_BIND }--bind=${NV_DIR}${nvidia_path%/}_nvidia:${nvidia_path%/}_nvidia"
 
-    test -e "${NV_DIR}${nvidia_path%/}_nvidia" && diff -q "${nvidia_path}libcuda.so" "${NV_DIR}${nvidia_path%/}_nvidia/libcuda.so" && echo "already updated nvidia libs" && continue
+    test -e "${NV_DIR}${nvidia_path%/}_nvidia" && diff -q "${nvidia_path}libGLX_nvidia.so.0" "${NV_DIR}${nvidia_path%/}_nvidia/libGLX_nvidia.so.0" && echo "already updated nvidia libs" && continue
 
     rm -rvf "${NV_DIR}${nvidia_path%/}_nvidia"
     mkdir -pv "${NV_DIR}${nvidia_path%/}_nvidia"
