@@ -18,6 +18,7 @@ compatibilidade com o sistema, além de contar com vários métodos de criação
 inclusão do **`GLibC`**. Também é possível empacotar programas autocontidos em 
 **`TarBall`** para quem optar por AppImages mais leves, porém com uma menor garantia
 de funcionalidade, por não incluir o **`GLibC`**.  
+ ​   
 
 ![](https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/NVIDIA_logo.svg/330px-NVIDIA_logo.svg.png)
 
@@ -227,14 +228,14 @@ incorporados e como solucionar problemas, consulte a documentação na wiki do g
 
 ## 📝 Próximas Implementações
 
-- ✏️ Mais scripts alternativos de empacotamento.
-- ✏️ Empacotamento usando **`sharun`**.
-- ✏️ Ferramentas extras.
-- ✏️ Possível implementação com debootstrap.
-- ✏️ Reempacotador de AppImage para adição de modificações.
-- ✏️ Possível ferramenta de autointegração.
-- ✏️ Possível empacotamento usando flatpack.
-- ✏️ Interface de desenvolvimento de Appimage.
+- 📎 Mais scripts alternativos de empacotamento.
+- 📎 Empacotamento usando **`sharun`**.
+- 📎 Ferramentas extras.
+- 📎 Possível implementação com debootstrap.
+- 📎 Reempacotador de AppImage para adição de modificações.
+- 📎 Possível ferramenta de autointegração.
+- 📎 Possível empacotamento usando flatpack.
+- 📎 Interface de desenvolvimento de Appimage.
 
 ## 🤝 Contribuindo
 
@@ -293,7 +294,7 @@ Agradecemos sua contribuição! 🚀✨
 > 
 > 🔗 *https://www.gnu.org/licenses/gpl-3.0.html*
 
-## ⚖️ Isenção de Responsabilidade
+## ⚠️ Isenção de Responsabilidade
 
 Este projeto tem como objetivo facilitar a criação de arquivos AppImage de forma prática
 e acessível, inteiramente ao benefício da **`Comunidade`** e também para uso pessoal.
