@@ -9,8 +9,7 @@
   Conteiner Junest para criar AppImage a partir de pacotes do Arch Linux.
 
 </h3>
-
----
+  ​  
 
 ## 📜 Descrição
 
@@ -222,7 +221,7 @@ alguma inconsistência.
 Para mais detalhes sobre o uso e as funcionalidades do **`ArchAppImage`**, projetos
 incorporados e como solucionar problemas, consulte a documentação na wiki do github:
 
-> 📜 [**Documentação Oficial do ArchAppImage**](https://github.com/LinuxDicasPro/ArchAppImage/wiki)
+📜 [**Documentação Oficial do ArchAppImage**](https://github.com/LinuxDicasPro/ArchAppImage/wiki)
 
 ## 📷 Capturas de Tela
 
