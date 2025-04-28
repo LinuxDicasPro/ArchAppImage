@@ -28,7 +28,7 @@ de funcionalidade, por não incluir o **`GLibC`**.
 ### Aceleração de HARDWARE para o Driver NVIDIA
 
 ```diff
-- SUPORTE EXPERIMENTAL
+- - - SUPORTE EXPERIMENTAL - - -
 ```
 
 **Foi decidido não usar o projeto `Conty` para a detecção do driver da nvidia. Ao invés 
