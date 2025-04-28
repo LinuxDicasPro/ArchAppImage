@@ -1,0 +1,71 @@
+#!/bin/sh
+#
+# Script for detect and extract Nvidia drivers {{{ 100% POSIX }}}
+#
+# By Mauricio Ferrari (m10ferrari1200@gmail.com)
+#
+###############################################################################
+
+#!/bin/bash
+
+set -e
+
+NV_DIR="$HOME/.local/share/ArchAppImage_Nvidia"
+mkdir -p "$NV_DIR/icd"
+
+extract_icd() {
+    icd_path="$(grep -Hm1 '"library_path"' /etc/vulkan/icd.d/nvidia*.json /usr/share/vulkan/icd.d/nvidia*.json || true)"
+    icd_file="${icd_path%%:*}"
+
+    cp -av "$icd_file" "$NV_DIR/icd/nvidia_icd.json"
+}
+
+extract_nvidia_libs()
+{
+    for nvidia_path in $(ldconfig -p | grep -Eo "/.*libnvidia.*so" | grep -Eo "/.*/" | sort -u) #$(sort -u <( grep -Eo "/.*/" <( grep -Eo "/.*libnvidia.*so" <( ldconfig -p ))) )
+    {
+        NV_LIBRARY="${NV_LIBRARY:+$NV_LIBRARY:}${nvidia_path%/}_nvidia"
+        BWRAP_BIND_LIB="${BWRAP_BIND_LIB:+$BWRAP_BIND_LIB }--bind-try ${NV_DIR}${nvidia_path%/}_nvidia ${nvidia_path%/}_nvidia"
+        PROOT_BIND_LIB="${PROOT_BIND_LIB:+$PROOT_BIND_LIB }--bind=${NV_DIR}${nvidia_path%/}_nvidia:${nvidia_path%/}_nvidia"
+
+        test -e "${NV_DIR}${nvidia_path%/}_nvidia" && diff -q "${nvidia_path}libGLX_nvidia.so.0" "${NV_DIR}${nvidia_path%/}_nvidia/libGLX_nvidia.so.0" && \
+            echo "already updated ${nvidia_path%/}" && continue
+
+        rm -rvf "${NV_DIR}${nvidia_path%/}_nvidia"
+        mkdir -pv "${NV_DIR}${nvidia_path%/}_nvidia"
+        test -e "${nvidia_path}nvidia" && cp -anv "${nvidia_path}nvidia" "${NV_DIR}${nvidia_path%/}_nvidia/nvidia"
+
+        for libs in \
+            "${nvidia_path}"libEGL*nvidia*.so* \
+            "${nvidia_path}"libGLES*nvidia*.so* \
+            "${nvidia_path}"libGLX*nvidia*.so* \
+            "${nvidia_path}"libcuda*.so* \
+            "${nvidia_path}"libnvcuvid*.so* \
+            "${nvidia_path}"libnvidia*.so* \
+            "${nvidia_path}"libnvoptix*.so*
+        {
+            test -e "$libs" || continue
+            cp -anv "$libs" "${NV_DIR}${nvidia_path%/}_nvidia/${libs##*/}"
+        }
+    }
+    test -f "$NV_DIR/icd/nvidia_icd.json" || extract_icd
+    return 0
+}
+
+if grep -q nvidia /proc/modules 2> /dev/null && grep -q nvidia /sys/bus/pci/devices/*/* 2> /dev/null; then
+    extract_nvidia_libs
+
+    BWRAP_NVIDIA_HARDWARE_ACCELERATION="--bind-try /lib/firmware /lib/firmware \
+        --ro-bind-try $NV_DIR/icd/nvidia_icd.json /etc/vulkan/icd.d/nvidia_icd.json \
+        ${BWRAP_BIND_LIB:+$BWRAP_BIND_LIB}
+    "
+
+    PROOT_NVIDIA_HARDWARE_ACCELERATION="--bind=/lib/firmware \
+        --bind=$NV_DIR/icd/nvidia_icd.json:/etc/vulkan/icd.d/nvidia_icd.json \
+        ${PROOT_BIND_LIB:+$PROOT_BIND_LIB}
+    "
+
+    export __NV_PRIME_RENDER_OFFLOAD=1
+    export __GLX_VENDOR_LIBRARY_NAME=nvidia
+    export VK_ICD_FILENAMES="/etc/vulkan/icd.d/nvidia_icd.json"
+fi

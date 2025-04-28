@@ -40,6 +40,7 @@ level_search_add_deps=1  # detect add dependences 1 - 2 - 3 ...
 mode="default"  # default - conteiner
 
 use_apprun_type=0  # mode conteiner: 0 (junest) - 1 (bwrap) - 2 (proot) - 3 (bwrap_proot_fallback)
+enable_nvidia=0    # mode conteiner: 0 (false) or 1 (true)
 
 enable_auto_integration=0            # 0 (false) or 1 (true)
 enable_auto_integration_autostart=0  # 0 (false) or 1 (true)
@@ -245,7 +246,7 @@ function _made_JuNest_a_potable_app
 
 function _enable_mountpoints_for_the_inbuilt_bubblewrap
 {
-    mkdir -pv "$appdir"/{etc/fonts,lib/firmware,home,mnt,tmp,media,opt,run,var,usr/{lib/locale,share/{font-config,fonts,themes}}}
+    mkdir -pv "$appdir"/{etc/{vulkan/icd.d,fonts},lib/firmware,home,mnt,tmp,media,opt,run,var,usr/{lib/locale,share/{font-config,fonts,themes}}}
 
     test -f "$appdir/etc/localtime" && rm -vf "$appdir/etc/localtime"
     : > "$appdir/etc/localtime"
@@ -572,15 +573,23 @@ which_bin=$("$junest" -- bash -c "which $binary_name")
 test -z "$parms" || sed -i "s|PARM=.*|PARM=\"$parms\"|" "$appdir/AppRun"
 
 test $enable_auto_integration -eq 0 || {
-    sed -i "s|AUTO_INTEGRATION=0|AUTO_INTEGRATION=1|" "$appdir/AppRun"
+    sed -i "s|AUTO_INTEGRATION=.*|AUTO_INTEGRATION=1|" "$appdir/AppRun"
     test $enable_auto_integration_autostart -eq 0 || {
-        sed -i "s|AUTOSTART=0|AUTOSTART=1|" "$appdir/AppRun"
+        sed -i "s|AUTOSTART=.*|AUTOSTART=1|" "$appdir/AppRun"
         test -z "$autostart_parms" || sed -i "s|AUTOSTART_PARM=.*|AUTOSTART_PARM=$autostart_parms|" "$appdir/AppRun"
     }
 }
 
 test "$mode" = "conteiner" && {
     sed -i "s|PROGRAM=.*|PROGRAM=$which_bin|" "$appdir/AppRun"
+    test "$enable_nvidia" -eq 0 || {
+        sed -i "s|ENABLE_NVIDIA=.*|ENABLE_NVIDIA=1|" "$appdir/AppRun"
+
+        test -f "$tool_dirs/DetectNVidia" || wget -q --show-progress \
+            "https://raw.githubusercontent.com/LinuxDicasPro/ArchAppImage/refs/heads/master/tools/DetectNVidia"
+
+        cp -nv "$tool_dirs/DetectNVidia" "$appdir"
+    }
 } || {
     type_file="$(file "$appdir/$which_bin")"
 

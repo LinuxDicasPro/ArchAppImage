@@ -25,25 +25,29 @@ BWRAP_OPTIONS=" --unshare-user --share-net \
     --bind-try /mnt /mnt \
     --bind-try /tmp /tmp \
     --bind-try /run /run \
-    --bind-try ${NV_DIR}/usr/bin_nvidia /usr/bin_nvidia \
-    $BWRAP_BIND \
-    --setenv LD_LIBRARY_PATH /usr/lib:/lib:/usr/lib64:/lib64${NV_LIBRARY:+:$NV_LIBRARY} \
-    --setenv PATH /usr/bin:/bin:/usr/sbin:/sbin:/usr/bin_nvidia
+    --bind-try ${NV_DIR}/usr/bin_nvidia /usr/bin_nvidia $BWRAP_BIND
 "
 
 icd_path=$(grep -Hm1 '"library_path"' /etc/vulkan/icd.d/nvidia*.json /usr/share/vulkan/icd.d/nvidia*.json || true)
 icd_file=${icd_path%%:*}
 
 xhost +
+
+export PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/bin_nvidia"
+export LD_LIBRARY_PATH="/usr/lib:/lib:/usr/lib64:/lib64${NV_LIBRARY:+:$NV_LIBRARY}"
+export __NV_PRIME_RENDER_OFFLOAD=1
+export __GLX_VENDOR_LIBRARY_NAME=nvidia
+export VK_ICD_FILENAMES=$icd_file
+
 exec "$APPDIR/usr/lib/ld-linux-x86-64.so.2" --inhibit-cache --library-path "${LIBRARY_PATH}" \
     "$APPDIR/usr/bin/bwrap" $BWRAP_OPTIONS bash -c "
-        __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia glxgears > /dev/null &
-        __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia VK_ICD_FILENAMES=$icd_file vkcube > /dev/null &
+        vkcube > /dev/null &
+        glxgears > /dev/null &
         clear
         while true; do
             nvidia-smi
             sleep 1
             tput el; tput cuu1; tput el
-            tput cup 2 0
+            tput cup 0 0
         done
     "

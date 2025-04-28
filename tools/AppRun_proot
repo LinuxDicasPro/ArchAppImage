@@ -10,12 +10,14 @@ APPDIR="$(cd -- "${0%/*}" && pwd -P)"
 
 PROGRAM=
 PARM=
+ENABLE_NVIDIA=${ENABLE_NVIDIA:-0}
 AUTO_INTEGRATION=${AUTO_INTEGRATION:-0}
 AUTOSTART=${AUTOSTART:-0}
 AUTOSTART_PARM=
 DESKTOP=
 ICON=
 
+test $ENABLE_NVIDIA -eq 1 && source "$APPDIR/DetectNVidia"
 
 if test $AUTO_INTEGRATION -eq 1 && command -v grep >/dev/null && command -v sed >/dev/null
 then
@@ -64,7 +66,6 @@ PROOT_OPTIONS="-R $APPDIR \
     --bind=/etc/machine-id \
     --bind=/etc/asound.conf \
     --bind=/etc/localtime \
-    --bind=/lib/firmware \
     --bind=/home \
     --bind=/media \
     --bind=/mnt \
@@ -75,7 +76,8 @@ PROOT_OPTIONS="-R $APPDIR \
     --bind=/usr/share/font-config \
     --bind=/usr/share/fonts \
     --bind=/usr/share/themes \
-    --bind=/var
+    --bind=/var ${PROOT_NVIDIA_HARDWARE_ACCELERATION:+$PROOT_NVIDIA_HARDWARE_ACCELERATION}
 "
 
+export LD_LIBRARY_PATH="/usr/lib:/lib:/usr/lib64:/lib64${NV_LIBRARY:+:$NV_LIBRARY}"
 exec "$APPDIR/usr/lib/ld-linux-x86-64.so.2" --inhibit-cache --library-path "${LIBRARY_PATH}" "$APPDIR/usr/bin/proot-x86_64" $PROOT_OPTIONS "$PROGRAM" $PARM "$@"  # parms no "parms"

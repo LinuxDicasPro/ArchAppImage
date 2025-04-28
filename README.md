@@ -21,6 +21,18 @@ inclusão do **`GLibC`**. Também é possível empacotar programas autocontidos 
 **`TarBall`** para quem optar por AppImages mais leves, porém com uma menor garantia
 de funcionalidade, por não incluir o **`GLibC`**. 
 
+>  ​  
+> ![](https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/NVIDIA_logo.svg/330px-NVIDIA_logo.svg.png)
+> ### Aceleração de HARDWARE para o Driver NVIDIA
+> > ```diff
+> > - SUPORTE EXPERIMENTAL -
+> > ```
+> **Foi decidido não usar o projeto `Conty` para a detecção do driver da nvidia. Ao invés 
+> disso, foi usado um método simplificado e preciso para a detecção baseado em `POSIX`, que
+> para um AppImage faz mais sentido, já que a ideia é que o AppImage execute no máximo de
+> sistemas Linux possíveis. Além disso, é mais simples para manutenção.**  
+>  ​  
+
 ## 🎯 Objetivo
 
 O objetivo do **`ArchAppImage`** é oferecer uma solução simplificada para facilitar a
@@ -130,6 +142,10 @@ o tamanho do AppImage.
 - Você pode ativar a autointegração na área de trabalho e a autointegração de inicialização
 durante a primeira execução do AppImage.
 
+- Para o modo conteiner, foi implementado suporte ao driver **`NVidia`**. Ao ativar o
+suporte, os drivers serão verificados toda vez que o AppImage for iniciado e atualizado
+automaticamente conforme a necessidade. 
+
 - Possui uma forma alternativa para configurar a detecção correta do idioma de forma
 definitiva em caso de programas que não detectam o idioma de forma alguma.
 
@@ -212,7 +228,6 @@ incorporados e como solucionar problemas, consulte a documentação na wiki do g
 
 ## 📝 Próximas Implementações
 
-- ✏️ Suporte a **`NVidia`** no modo de Conteiner -> a caminho.
 - ✏️ Mais scripts alternativos de empacotamento.
 - ✏️ Empacotamento usando **`sharun`**.
 - ✏️ Ferramentas extras.
@@ -278,6 +293,44 @@ Agradecemos sua contribuição! 🚀✨
 > o texto completo da licença no site da **`Free Software Foundation`**:
 > 
 > 🔗 *https://www.gnu.org/licenses/gpl-3.0.html*
+
+## ⚖️ Isenção de Responsabilidade
+
+Este projeto tem como objetivo facilitar a criação de arquivos AppImage de forma prática
+e acessível, inteiramente ao benefício da **`Comunidade`** e também para uso pessoal.
+O autor não se responsabiliza por:
+
+- ❌ Problemas em relação ao conteúdo, legalidade, qualidade, integridade ou segurança 
+dos AppImages criados com esta ferramenta. O empacotador é quem deve garantir
+a segurança e a integridade do AppImage.
+
+- ❌ Qualquer violação de direitos autorais, licenças de software ou outras leis decorrentes
+do uso da ferramenta. Softwares proprietários têm **`licenças restritivas`**. Geralmente,
+você não terá o direito de redistribuir, modificar ou empacotar eles livremente, 
+a menos que o dono permita.
+   > **OBS: Nesse caso, disponibilizar o script de criação para que o próprio usuário 
+   > crie o AppImage para uso pessoal pode ser uma opção.**
+
+- ❌ Danos causados a sistemas operacionais, arquivos ou dispositivos devido ao uso de 
+AppImages gerados por essa ferramenta, principalmente AppImage contendo código malicioso,
+vulnerabilidades ou qualquer outro tipo de ameaça à segurança de sistemas.
+
+- ❌ Qualquer outro uso que viole as leis locais, nacionais ou internacionais
+decorrentes do uso da ferramenta.
+
+O usuário é inteiramente responsável pelas ações que realizar utilizando esta ferramenta,
+incluindo o que empacota, distribui e executa. Ao utilizar este projeto, você declara
+estar ciente de sua responsabilidade e concorda em isentar o autor de qualquer
+responsabilidade civil, criminal ou legal decorrente do mau uso dessa ferramenta.
+
+> ### IMPORTANTE
+> - **Esta ferramenta é fornecida `no estado em que se encontra`, sem garantias explícitas
+> ou implícitas de qualquer tipo, incluindo garantias de funcionamento, segurança ou 
+> adequação a qualquer propósito específico, embora submetido a testes rigorosos.**
+> - **Esta ferramenta não é destinada à criação de AppImages de software proprietário
+> sem a devida autorização do proprietário ou entidade.**
+> - **Este aviso de isenção de responsabilidade não altera nem restringe as liberdades
+> garantidas pela licença GPLv3.**  
 
 ## 📩 Contato
 

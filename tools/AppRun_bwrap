@@ -10,12 +10,14 @@ APPDIR="$(cd -- "${0%/*}" && pwd -P)"
 
 PROGRAM=
 PARM=
+ENABLE_NVIDIA=${ENABLE_NVIDIA:-0}
 AUTO_INTEGRATION=${AUTO_INTEGRATION:-0}
 AUTOSTART=${AUTOSTART:-0}
 AUTOSTART_PARM=
 DESKTOP=
 ICON=
 
+test $ENABLE_NVIDIA -eq 1 && source "$APPDIR/DetectNVidia"
 
 if test $AUTO_INTEGRATION -eq 1 && command -v grep >/dev/null && command -v sed >/dev/null
 then
@@ -64,7 +66,6 @@ BWRAP_OPTIONS="--unshare-user --bind $APPDIR / \
     --ro-bind-try /etc/machine-id /etc/machine-id \
     --ro-bind-try /etc/asound.conf /etc/asound.conf \
     --ro-bind-try /etc/localtime /etc/localtime \
-    --bind-try /lib/firmware /lib/firmware \
     --bind-try /home /home \
     --bind-try /media /media \
     --bind-try /mnt /mnt \
@@ -76,9 +77,11 @@ BWRAP_OPTIONS="--unshare-user --bind $APPDIR / \
     --bind-try /usr/share/font-config /usr/share/font-config \
     --bind-try /usr/share/fonts /usr/share/fonts \
     --bind-try /usr/share/themes /usr/share/themes \
-    --bind-try /var /var \
+    --bind-try /var /var ${BWRAP_NVIDIA_HARDWARE_ACCELERATION:+$BWRAP_NVIDIA_HARDWARE_ACCELERATION} \
     --setenv BWROOTFS \"$APPDIR\"
 "
 
 command -v xhost && xhost -SI:localuser:"$USER"
+
+export LD_LIBRARY_PATH="/usr/lib:/lib:/usr/lib64:/lib64${NV_LIBRARY:+:$NV_LIBRARY}"
 exec "$APPDIR/usr/lib/ld-linux-x86-64.so.2" --inhibit-cache --library-path "${LIBRARY_PATH}" "$APPDIR/usr/bin/bwrap" $BWRAP_OPTIONS "$PROGRAM" $PARM "$@"  # parms no "parms"

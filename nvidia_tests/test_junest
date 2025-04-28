@@ -21,6 +21,7 @@ BWRAP_OPTIONS=" --dev-bind /dev /dev \
     --bind-try /mnt /mnt \
     --bind-try /tmp /tmp \
     --bind-try /run /run \
+    --bind-try /home /home \
     --bind-try ${NV_DIR}/usr/bin_nvidia /usr/bin_nvidia \
     $BWRAP_BIND
 "
@@ -28,19 +29,22 @@ BWRAP_OPTIONS=" --dev-bind /dev /dev \
 icd_path=$(grep -Hm1 '"library_path"' /etc/vulkan/icd.d/nvidia*.json /usr/share/vulkan/icd.d/nvidia*.json || true)
 icd_file=${icd_path%%:*}
 
-export JUNEST_HOME="$APPDIR"
-
 xhost +
+
+export JUNEST_HOME="$APPDIR"
+export LD_LIBRARY_PATH="/usr/lib:/lib:/usr/lib64:/lib64${NV_LIBRARY:+:$NV_LIBRARY}"
+export __NV_PRIME_RENDER_OFFLOAD=1
+export __GLX_VENDOR_LIBRARY_NAME=nvidia
+export VK_ICD_FILENAMES=$icd_file
+
 "$APPDIR/junest/bin/junest" -n -b "$BWRAP_OPTIONS" -- bash -c "
-    export PATH=\"/usr/bin:/bin:/usr/sbin:/sbin:/usr/bin_nvidia\"
-    export LD_LIBRARY_PATH=\"/usr/lib:/lib:/usr/lib64:/lib64${NV_LIBRARY:+:$NV_LIBRARY}\"
-    __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia glxgears > /dev/null &
-    __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia VK_ICD_FILENAMES=$icd_file vkcube > /dev/null &
+    vkcube > /dev/null &
+    glxgears > /dev/null &
     clear
     while true; do
-        nvidia-smi
+        /usr/bin_nvidia/nvidia-smi
         sleep 1
         tput el; tput cuu1; tput el
-        tput cup 2 0
+        tput cup 0 0
     done
 "

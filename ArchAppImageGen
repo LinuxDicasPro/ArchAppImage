@@ -54,7 +54,7 @@ function _project_dir
     test -d $project_dir || {
         mkdir -p "$HOME/ArchAppImage/tools"
 
-        for f in APP-ArchAppImage AppRun_bwrap AppRun_Conteiner AppRun_proot AppRun_Universal
+        for f in APP-ArchAppImage AppRun_bwrap AppRun_Conteiner AppRun_proot AppRun_Universal DetectNVidia
         {
             test -f "$project_dir/tools/$f" || {
                 test -f "$CWD/tools/$f" && cp "$CWD/tools/$f" "$project_dir/tools"

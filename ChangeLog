@@ -1,4 +1,9 @@
-2015-04-18:
+2025-04-27:
+    - add support nvidia for conteiner mode
+    - update nvidia tests
+    - update readme
+    - update ArchAppImageGen
+2025-04-18:
     - change readme
     - update recipes
     - update AppRuns for add parm options
