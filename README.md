@@ -26,11 +26,11 @@ de funcionalidade, por não incluir o **`GLibC`**.
   ​  
 ![](https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/NVIDIA_logo.svg/330px-NVIDIA_logo.svg.png)
 ### Aceleração de HARDWARE para o Driver NVIDIA
+
 ```diff
--                      - 
-- SUPORTE EXPERIMENTAL -
--                      -
+- SUPORTE EXPERIMENTAL
 ```
+
 **Foi decidido não usar o projeto `Conty` para a detecção do driver da nvidia. Ao invés 
 disso, foi usado um método simplificado e preciso para a detecção baseado em `POSIX`, que
 para um AppImage faz mais sentido, já que a ideia é que o AppImage execute no máximo de
