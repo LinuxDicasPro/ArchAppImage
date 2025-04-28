@@ -323,7 +323,7 @@ incluindo o que empacota, distribui e executa. Ao utilizar este projeto, você d
 estar ciente de sua responsabilidade e concorda em isentar o autor de qualquer
 responsabilidade civil, criminal ou legal decorrente do mau uso dessa ferramenta.
 
-> # Importante: 
+ ### `IMPORTANTE:` 
 - **Esta ferramenta é fornecida `no estado em que se encontra`, sem garantias explícitas
 ou implícitas de qualquer tipo, incluindo garantias de funcionamento, segurança ou 
 adequação a qualquer propósito específico, embora submetido a testes rigorosos.**
