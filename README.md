@@ -228,14 +228,14 @@ incorporados e como solucionar problemas, consulte a documentação na wiki do g
 
 ## 📝 Próximas Implementações
 
-- 📎 Mais scripts alternativos de empacotamento.
-- 📎 Empacotamento usando **`sharun`**.
-- 📎 Ferramentas extras.
-- 📎 Possível implementação com debootstrap.
-- 📎 Reempacotador de AppImage para adição de modificações.
-- 📎 Possível ferramenta de autointegração.
-- 📎 Possível empacotamento usando flatpack.
-- 📎 Interface de desenvolvimento de Appimage.
+- 📌 Mais scripts alternativos de empacotamento.
+- 📌 Empacotamento usando **`sharun`**.
+- 📌 Ferramentas extras.
+- 📌 Possível implementação com debootstrap.
+- 📌 Reempacotador de AppImage para adição de modificações.
+- 📌 Possível ferramenta de autointegração.
+- 📌 Possível empacotamento usando flatpack.
+- 📌 Interface de desenvolvimento de Appimage.
 
 ## 🤝 Contribuindo
 
