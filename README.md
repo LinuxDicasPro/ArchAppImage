@@ -19,19 +19,25 @@ usando pacotes do Arch Linux. Ele automatiza a criação de pacotes e melhora a
 compatibilidade com o sistema, além de contar com vários métodos de criação de AppImage e
 inclusão do **`GLibC`**. Também é possível empacotar programas autocontidos em 
 **`TarBall`** para quem optar por AppImages mais leves, porém com uma menor garantia
-de funcionalidade, por não incluir o **`GLibC`**. 
+de funcionalidade, por não incluir o **`GLibC`**.  
+  ​  
+  
+---
+  ​  
+![](https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/NVIDIA_logo.svg/330px-NVIDIA_logo.svg.png)
+### Aceleração de HARDWARE para o Driver NVIDIA
+```diff
+-                      - 
+- SUPORTE EXPERIMENTAL -
+-                      -
+```
+**Foi decidido não usar o projeto `Conty` para a detecção do driver da nvidia. Ao invés 
+disso, foi usado um método simplificado e preciso para a detecção baseado em `POSIX`, que
+para um AppImage faz mais sentido, já que a ideia é que o AppImage execute no máximo de
+sistemas Linux possíveis. Além disso, é mais simples para manutenção.**  
 
->  ​  
-> ![](https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/NVIDIA_logo.svg/330px-NVIDIA_logo.svg.png)
-> ### Aceleração de HARDWARE para o Driver NVIDIA
-> > ```diff
-> > - SUPORTE EXPERIMENTAL -
-> > ```
-> **Foi decidido não usar o projeto `Conty` para a detecção do driver da nvidia. Ao invés 
-> disso, foi usado um método simplificado e preciso para a detecção baseado em `POSIX`, que
-> para um AppImage faz mais sentido, já que a ideia é que o AppImage execute no máximo de
-> sistemas Linux possíveis. Além disso, é mais simples para manutenção.**  
->  ​  
+---
+  ​  
 
 ## 🎯 Objetivo
 
