@@ -288,11 +288,11 @@ Agradecemos sua contribuição! 🚀✨
 
 ## 📜 Licença
 
-> Este projeto é distribuído sob os termos da **`GNU General Public License version 3`**.  
-> Para mais detalhes sobre a licença, consulte o arquivo [**LICENSE**](LICENSE) ou acesse
-> o texto completo da licença no site da **`Free Software Foundation`**:
-> 
-> 🔗 *https://www.gnu.org/licenses/gpl-3.0.html*
+Este projeto é distribuído sob os termos da **`GNU General Public License version 3`**.  
+Para mais detalhes sobre a licença, consulte o arquivo [**LICENSE**](LICENSE) ou acesse
+o texto completo da licença no site da **`Free Software Foundation`**:
+
+🔗 *https://www.gnu.org/licenses/gpl-3.0.html*
 
 ## ⚠️ Isenção de Responsabilidade
 
@@ -308,8 +308,9 @@ a segurança e a integridade do AppImage.
 do uso da ferramenta. Softwares proprietários têm **`licenças restritivas`**. Geralmente,
 você não terá o direito de redistribuir, modificar ou empacotar eles livremente, 
 a menos que o dono permita.
-   > **OBS: Nesse caso, disponibilizar o script de criação para que o próprio usuário 
-   > crie o AppImage para uso pessoal pode ser uma opção.**
+
+  **OBS: Nesse caso, disponibilizar o script de criação para que o próprio usuário 
+  crie o AppImage para uso pessoal pode ser uma opção.**
 
 - ❌ Danos causados a sistemas operacionais, arquivos ou dispositivos devido ao uso de 
 AppImages gerados por essa ferramenta, principalmente AppImage contendo código malicioso,
