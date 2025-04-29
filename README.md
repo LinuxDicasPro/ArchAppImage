@@ -228,14 +228,14 @@ incorporados e como solucionar problemas, consulte a documentação na wiki do g
 
 ## 📝 Próximas Implementações
 
-- 📌 Mais scripts alternativos de empacotamento.
-- 📌 Empacotamento usando **`sharun`**.
-- 📌 Ferramentas extras.
-- 📌 Possível implementação com debootstrap.
-- 📌 Reempacotador de AppImage para adição de modificações.
-- 📌 Possível ferramenta de autointegração.
-- 📌 Possível empacotamento usando flatpack.
-- 📌 Interface de desenvolvimento de Appimage.
+- 📌 **Implementação com debootstrap adaptado ao junest.**
+- 📌 **Ativar suporte ao uso do uruntime.**
+- 📌 **Ativar suporte ao unionfs.**
+- 📌 **Empacotamento usando `sharun`.**
+- 📌 **Reempacotador de AppImage para adição de modificações.**
+- 📌 **Possível empacotamento usando flatpack.**
+- 📌 **Futuramente, um Software de Desenvolvimento de AppImage em QT.**
+- 📌 **Ferramentas adicionais.**
 
 ## 🤝 Contribuindo
 
@@ -324,7 +324,7 @@ incluindo o que empacota, distribui e executa. Ao utilizar este projeto, você d
 estar ciente de sua responsabilidade e concorda em isentar o autor de qualquer
 responsabilidade civil, criminal ou legal decorrente do mau uso dessa ferramenta.
 
- ### `IMPORTANTE:` 
+### `IMPORTANTE:` 
 - **Esta ferramenta é fornecida `no estado em que se encontra`, sem garantias explícitas
 ou implícitas de qualquer tipo, incluindo garantias de funcionamento, segurança ou 
 adequação a qualquer propósito específico, embora submetido a testes rigorosos.**
