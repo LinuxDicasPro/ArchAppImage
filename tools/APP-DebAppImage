@@ -6,7 +6,6 @@
 #   - bash >= 4.x
 #   - binutils (readelf strip)
 #   - coreutils >= 5.93
-#   - curl
 #   - grep
 #   - sed
 #   - tar
@@ -22,24 +21,19 @@
 CWD="$PWD"
 set -e
 
-package_name=mousepad
+package_name=
 parms=  # optional
 
-binary_name=   # optional
-dependences="gtk3 gdk-pixbuf2"   # optional
+binary_name=       # optional
+dependences=       # optional
+deb_package_link=  # optional
 
-use_font="noto-fonts"
-# use_font="gnu-free-fonts"
+use_font="fonts-noto"
+# use_font="fonts-freefont-ttf"
 
-use_lib_browser_launcher=0  # 0 (false) or 1 (true)
-use_lib_audio_keywords=0    # 0 (false) or 1 (true)
+mode="default"  # default - conteiner
 
-level_search_deps=2      # auto detect dependences 1 - 2 - 3 ...
-level_search_add_deps=1  # detect add dependences 1 - 2 - 3 ...
-
-mode="conteiner"  # default - conteiner
-
-use_apprun_type=2  # mode conteiner: 0 (junest) - 1 (bwrap_proot) - 2 (proot)
+use_apprun_type=0  # mode conteiner: 0 (bwrap_proot) - 1 (proot)
 enable_nvidia=0    # mode conteiner: 0 (false) or 1 (true)
 
 enable_auto_integration=0            # 0 (false) or 1 (true)
@@ -49,17 +43,12 @@ autostart_parms=  # optional
 custom_conteiner_name= #"$package_name" # optional
 
 enable_multilib=0     # 0 (false) or 1 (true)
-enable_chaoticaur=0   # 0 (false) or 1 (true)
-enable_archlinuxcn=0  # 0 (false) or 1 (true)
-enable_build_aur=0    # 0 (false) or 1 (true)
 
 use_custom_apprun=  # optional
-
-use_desktop_file=  # optional - "$CWD/usr/share/applications/desktopfile.desktop"
-use_icon_file=     # optional - "$CWD/usr/share/pixmaps/icon.png"
+use_desktop_file=   # optional - "$CWD/usr/share/applications/desktopfile.desktop"
+use_icon_file=      # optional - "$CWD/usr/share/pixmaps/icon.png"
 
 add_basic_stuff=  # optional
-add_compilers=    # optional - for aur
 
 bin_saved=    # optional - "bin1 bin2 bin3"
 share_saved=  # optional - "share1 share2 share3"
@@ -70,34 +59,50 @@ remove_others_libs_bloatwares=   # optional - "dir1|dir2|lib1"
 remove_others_bins_bloatwares=   # optional - "bin1|bin2|bin3"
 remove_others_etc_bloatwares=    # optional - "dir1|dir2|file"
 
-config_all_locales=2  # mode conteiner: 0 (false) - 1 (true) - 2 (autodetect)
+config_all_locales=0  # mode conteiner: 0 (false) - 1 (true) - 2 (autodetect)
+use_lib_browser_launcher=0  # 0 (false) or 1 (true)
 
 noupdate=0           # 0 (false) or 1 (true)
-no_save_bins=1       # 0 (false) or 1 (true)
-use_ldd_search=1     # 0 (false) or 1 (true)
+no_save_bins=0       # 0 (false) or 1 (true)
 recreate_appdir=0    # 0 (false) or 1 (true)
-create_appimage=1    # 0 (false) or 1 (true)
+create_appimage=0    # 0 (false) or 1 (true)
 
-use_uruntime=1      # 0 (type2runtime) - 1 (uruntime) - 2 (uruntime-dwarfs)
 appimage_dest_dir=  # optional
 
 ###############################################################################
 
-
 test -z "$package_name" && exit 1
+
+read -s -p "INFO: ESSE SCRIPT USA SUDO. É NECESSÁRIO UMA SENHA PARA O SUDO!
+Digite uma senha para o sudo: " _pass
+echo
+
+FIFO=$(mktemp)
+
+cleanup() {
+    echo "LIMPANDO SUDO!"
+    unset SUDO_ASKPASS
+    unset _pass
+    rm -f "$FIFO"
+}
+trap cleanup EXIT
+
+echo "#!/bin/bash
+echo \"$_pass\"" >> "$FIFO"
+
+chmod +x "$FIFO"
+
+export _pass
+export SUDO_ASKPASS="$FIFO"
 
 binary_name="${binary_name:-"$package_name"}"
 
-conteiner_rootfs="$CWD/arch${custom_conteiner_name:+"_$custom_conteiner_name"}_bootstrap"
+conteiner_rootfs="$CWD/debian${custom_conteiner_name:+"_$custom_conteiner_name"}_bootstrap"
 
 tool_dirs="$CWD/tools"
 appdir="$CWD/$package_name.AppDir"
 
 mkdir -pv "$tool_dirs" "$appdir"
-
-test $enable_build_aur -eq 1 && use_aur="yay"
-
-pacman=${use_aur:-sudo "pacman"}
 
 
 # ### DOWNLOAD & CHECK TOOLS ### ######################################################################################
@@ -106,22 +111,21 @@ pacman=${use_aur:-sudo "pacman"}
 export JUNEST_HOME="$conteiner_rootfs"
 HOME="$CWD"
 
-junest="$(
-    printf '%s' "$tool_dirs/junest/bin/junest"
+debootstrap="$(
+    printf '%s' "$tool_dirs/debootstrap/debootstrap"
 
-    test -d "$tool_dirs/junest" && exit 0
+    test -d "$tool_dirs/debootstrap" && exit 0
     (
-        git clone https://github.com/fsquillace/junest.git "$tool_dirs/junest"
+        git clone https://salsa.debian.org/installer-team/debootstrap.git "$tool_dirs/debootstrap"
     )
 )"
 
 apprun="${use_custom_apprun:-"$(
     test "$mode" = "conteiner" && {
-        select_apprun="AppRun_junest"
-        test $use_apprun_type -eq 1 && select_apprun="AppRun_bwrap_proot"
-        test $use_apprun_type -eq 2 && select_apprun="AppRun_proot"
+        select_apprun="AppRun_bwrap_proot"
+        test $use_apprun_type -eq 1 && select_apprun="AppRun_proot"
         true
-    } || select_apprun="AppRun_default"
+    } || select_apprun="AppRun_debian"
 
     printf '%s' "$tool_dirs/$select_apprun"
     test -f "$tool_dirs/$select_apprun" && exit 0
@@ -130,21 +134,6 @@ apprun="${use_custom_apprun:-"$(
             "https://raw.githubusercontent.com/LinuxDicasPro/ArchAppImage/refs/heads/master/tools/$select_apprun"
     )
 )"}"
-
-
-test -f "$tool_dirs/libselinux.so.1" || {
-
-    libselinux_link="https://repo.taiho.moe/selinux/$(
-        mapfile -t l < <(
-            grep "^libselinux.*zst$" <(
-                awk -F '"' '{print $2}' <(
-                    curl -Ls https://repo.taiho.moe/selinux/ )))
-        printf '%s' "${l[-1]}"
-    )"
-
-    wget -c -q --show-progress -O "$tool_dirs/${libselinux_link##*/}" "$libselinux_link"
-    tar -I zstd --strip-components=2 -C "$tool_dirs" -xvf "$tool_dirs/${libselinux_link##*/}" usr/lib/libselinux.so.1
-}
 
 
 # ### DOWNLOAD APPIMAGE TOOLS ### #####################################################################################
@@ -181,9 +170,8 @@ runtime="$(
 
 printf "%-18s %s\n" \
   "use apprun:"        "$apprun" \
-  "junest command:"    "$junest" \
-  "runtime:"           "$runtime" \
-  "package manager:"   "$pacman"
+  "debootstrap:"       "$debootstrap" \
+  "runtime:"           "$runtime"
 
 
 # ### FUNCTIONS ### ###################################################################################################
@@ -197,7 +185,7 @@ function _extra_config
 
 function _remove_others_bloatwares
 {
-    etc_remove="gcc makepkg.conf pacman"
+    etc_remove="gcc"
     bin_remove="gcc"
     lib_remove="gcc"
     share_remove="gcc"
@@ -205,7 +193,7 @@ function _remove_others_bloatwares
     declare -A remove_dirs=(
         [etc]="$etc_remove"
         [bin]="$bin_remove"
-        [lib]="$lib_remove"
+        [lib/x86_64-linux-gnu]="$lib_remove"
         [share]="$share_remove"
     )
 
@@ -218,35 +206,12 @@ function _remove_others_bloatwares
 }
 
 
-function _junest_update
+function _debian_update
 {
-    "$junest" -f -- bash -c "
-        pacman -Syy
-        pacman --noconfirm -Syu
+    sudo -A chroot "$conteiner_rootfs" bash -c "
+        apt update
+        apt full-upgrade -y
     "
-}
-
-
-function _country_mirrorlist
-{
-    country="$( awk -F '"' '{print $4}' <(grep country <(curl -i ipinfo.io 2>/dev/null )))"
-
-    grep -q Server <( curl --silent https://archlinux.org/mirrorlist/?country="$country" ) || {
-        sed 's/#Server/Server/g' <( awk NR==2 RS=  <( curl -Ls https://archlinux.org/mirrorlist/all )) > "$conteiner_rootfs/etc/pacman.d/mirrorlist"
-        return 0
-    }
-
-    sed "s/#Server/Server/" <( curl -Ls https://archlinux.org/mirrorlist/?country="$country" ) > "$conteiner_rootfs/etc/pacman.d/mirrorlist"
-}
-
-
-function _made_JuNest_a_potable_app
-{
-    sed -i 's|${JUNEST_HOME}/usr/bin/junest_wrapper|${HOME}/.cache/junest_wrapper.old|g' "$appdir/junest/lib/core/wrappers.sh"
-    sed -i 's|--bind "$HOME" "$HOME"|--bind-try /home /home --bind-try /run/user /run/user|g' "$appdir/junest/lib/core/namespace.sh"
-    sed -i 's/rm -f "${JUNEST_HOME}${bin_path}_wrappers/#rm -f "${JUNEST_HOME}${bin_path}_wrappers/g' "$appdir/junest/lib/core/wrappers.sh"
-    sed -i 's/rm -f "$file"/test -f "$file"/g' "$appdir/junest/lib/core/wrappers.sh"
-    sed -i 's/ln/#ln/g' "$appdir/junest/lib/core/wrappers.sh"
 }
 
 
@@ -291,84 +256,91 @@ StartupNotify=true
 
 
 test -d "$conteiner_rootfs" || {
-    "$junest" setup
+    noupdate=1
 
-    test $enable_multilib -eq 1 && sed -i '/^#\[multilib\]/{s/^#//;n;s/^#//}' "$conteiner_rootfs/etc/pacman.conf"
+    mkdir -pv "$conteiner_rootfs"
+    sudo -A "$debootstrap" --arch amd64 stable "$conteiner_rootfs" http://deb.debian.org/debian/
 
-    test $enable_chaoticaur -eq 1 && "$junest" -f -- bash -c "
-        pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com
-        pacman-key --lsign-key 3056513887B78AEB
-        pacman --noconfirm -U https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst
-        pacman-key --populate chaotic
-        printf '\n[chaotic-aur]\nInclude = /etc/pacman.d/chaotic-mirrorlist' >> /etc/pacman.conf
-    "
+    export lang="${LANG%%.*}"
 
-    test $enable_archlinuxcn -eq 1 && {
-        archlinuxcn_link="https://repo.archlinuxcn.org/x86_64/$(
-            mapfile-t l < <(
-                grep "^archlinuxcn-keyring.*zst$" <(
-                    awk -F '"' '{print $2}' <(
-                        curl -Ls https://repo.archlinuxcn.org/x86_64/ )))
-            printf '%s' "${l[-1]}"
-        )"
+    test $enable_multilib -eq 1 && sudo -A chroot "$conteiner_rootfs" bash -c "dpkg --add-architecture i386"
 
-        "$junest" -f -- bash -c "
-            pacman --noconfirm -U $archlinuxcn_link
-            printf '\n[archlinuxcn]\n#SigLevel = Never\nServer = http://repo.archlinuxcn.org/\$arch' >> /etc/pacman.conf
-        "
-    }
+    sudo -A chroot "$conteiner_rootfs" bash -c "
+        echo -e \"deb http://deb.debian.org/debian stable contrib main non-free
+deb http://deb.debian.org/debian stable-updates contrib main non-free
+deb https://security.debian.org/debian-security stable-security contrib main non-free\" > /etc/apt/sources.list
 
-    _country_mirrorlist
+        apt update
+        apt install --reinstall -y ca-certificates
+        apt update
+        apt install -y libglib2.0-bin bubblewrap proot locales libasound2 apt-rdepends wget binutils debugedit gzip $add_basic_stuff $use_font
 
-    sed -i 's/#SigLevel/SigLevel/g' "$conteiner_rootfs/etc/pacman.conf"
-    sed -i 's/Required DatabaseOptional/Never/g' "$conteiner_rootfs/etc/pacman.conf"
-
-    _junest_update && noupdate=1
-
-    "$junest" -f -- bash -c "pacman --noconfirm -S which alsa-lib pacman-contrib binutils debugedit gzip $add_basic_stuff $use_font"
-
-    test -z "$use_aur" || "$junest" -f -- bash -c "
-        pacman -S base-devel $add_compilers
-        gpg --keyserver keyserver.ubuntu.com --recv-key C01E1CAD5EA2C4F0B8E3571504C367C218ADD4FF
-    "
-
-    lang="${LANG%%.*}"
-    sed -i "s/#$lang/$lang/" "$conteiner_rootfs/etc/locale.gen"
-    sed -i "s/LANG=.*/LANG=$LANG/" "$conteiner_rootfs/etc/locale.conf"
-
-    "$junest" -f -- bash -c "
-        pacman --noconfirm -S glibc
+        sed -i \"s/# $lang/$lang/\" /etc/locale.gen
         locale-gen
+        update-locale LANG=\"$LANG\"
     "
+
+    MYUSER="$USER"
+    sudo -A chown -R "$MYUSER":users "$conteiner_rootfs"
+
+    cd "$conteiner_rootfs/lib64"
+    rm -f ld-linux-x86-64.so.2
+    ln -sf ../lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 ld-linux-x86-64.so.2
+    cd -
+
+    cd "$conteiner_rootfs/bin"
+    rm -f sh which
+    ln -sf bash sh
+    ln -sf proot proot-x86_64
+    ln -sf which.debianutils which
+    cd -
 }
 
 
 # ### INSTALL PACKAGES ### ############################################################################################
 
 
-test $noupdate = 1 || _junest_update
+test $noupdate = 1 || _debian_update
 
-"$junest" -- bash -c "$pacman --noconfirm -S $package_name $dependences"
-"$junest" -f -- bash -c "glib-compile-schemas /usr/share/glib-2.0/schemas/"
+test $use_lib_browser_launcher -eq 0 || xapp="libxapp1"
+
+sudo -A chroot "$conteiner_rootfs" bash -c "
+    cd /tmp
+
+    test -z \"$deb_package_link\" || {
+        deb_package_file=\"/tmp/${deb_package_link##*/}\"
+        wget -c \"$deb_package_link\"
+    }
+
+    apt install -y \${deb_package_file:-$package_name}
+    apt install -y $dependences $xapp
+"
+
+MYUSER="$USER"
+sudo -A chown -R "$MYUSER":users "$conteiner_rootfs"
 
 
 # ### EXTRACT AUTO DEPENDENCES ### ####################################################################################
 
 
 remove_share_bloatwares="share/(fonts|cmake|man|licenses|doc|locale|info|gtk-doc|zoneinfo|pkgconfig${remove_others_share_bloatwares:+"|$remove_others_share_bloatwares"})"
-remove_libs_bloatwares="lib/(cmake|pkgconfig|systemd|sysctl.d|tmpfiles.d|sysusers.d|lib.*[.]a${remove_others_libs_bloatwares:+"|$remove_others_libs_bloatwares"})"
+remove_libs_bloatwares="lib/x86_64-linux-gnu/(cmake|pkgconfig|systemd|sysctl.d|tmpfiles.d|sysusers.d|lib.*[.]a${remove_others_libs_bloatwares:+"|$remove_others_libs_bloatwares"})"
 remove_bins_bloatwares="bin/(systemd${remove_others_bins_bloatwares:+"|$remove_others_bins_bloatwares"})"
 remove_etc_bloatwares="/etc/(systemd${remove_others_etc_bloatwares:+"|$remove_others_etc_bloatwares"})"
 
-mapfile -t find_deps < <("$junest" -- bash -c "pactree -d $level_search_deps -u $package_name")
-mapfile -d ' ' -t filter_deps <<< "${find_deps[@]/[>|=]*/}"
+test "$mode" = "default" || essentials_deps="libc6 libglib2.0-0 libglib2.0-bin shared-mime-info hicolor-icon-theme $xapp"
+
+mapfile -t filter_deps < <(unshare --map-root-user chroot "$conteiner_rootfs" bash -c "dpkg -s $package_name | grep ^Depends | sed 's/([^)]*)//g;s/,/\n/g;s/Depends: //;s/|//g'")
 
 list_deps="${filter_deps[*]:1}"
 
-list_files=$( awk '{print $2}' <( grep -Ev \
-    "/var|__pycache__|/$|$remove_etc_bloatwares|/usr/(include|$remove_bins_bloatwares|$remove_libs_bloatwares|$remove_share_bloatwares)" <(
-    "$junest" -- bash -c "pacman -Ql $list_deps"
-)))
+list_files=$( grep -Ev "/var|__pycache__|/$|$remove_etc_bloatwares|/usr/(include|$remove_bins_bloatwares|$remove_libs_bloatwares|$remove_share_bloatwares)" <(
+    unshare --map-root-user chroot "$conteiner_rootfs" bash -c "dpkg -L $list_deps $essentials_deps || true"
+))
+
+list_binary_files=$( grep -Ev '__pycache__|/$|/usr/(share/(gcc|man|doc|info|pkgconfig)|include)' <(
+    unshare --map-root-user chroot "$conteiner_rootfs" bash -c "dpkg -L $package_name"
+))
 
 
 # ### EXTRACT MANUAL DEPENDENCES ### ##################################################################################
@@ -377,74 +349,28 @@ list_files=$( awk '{print $2}' <( grep -Ev \
 test -z "$dependences" || {
     for dep in $dependences
     {
-        mapfile -t deps_tmp < <("$junest" -- bash -c "pactree -d $level_search_add_deps -u $dep")
-        find_add_deps+=("${deps_tmp[@]}")
+        mapfile -t deps_tmp < <(unshare --map-root-user chroot "$conteiner_rootfs" bash -c "dpkg -s $dep | grep ^Depends | sed 's/([^)]*)//g;s/,/\n/g;s/Depends: //;s/|//g'")
+        list_add_deps+=("${deps_tmp[*]}")
     }
 
-    mapfile -d ' ' -t list_add_deps <<< "${find_add_deps[@]/[>|=]*/}"
-
-    list_add_files=$( awk '{print $2}' <( grep -Ev \
-    "/var|__pycache__|/$|$remove_etc_bloatwares|/usr/(include|$remove_bins_bloatwares|$remove_libs_bloatwares|$remove_share_bloatwares)" <(
-        "$junest" -- bash -c "pacman -Ql ${list_add_deps[*]}"
-    )))
+    list_add_files=$( grep -Ev "/var|__pycache__|/$|$remove_etc_bloatwares|/usr/(include|$remove_bins_bloatwares|$remove_libs_bloatwares|$remove_share_bloatwares)" <(
+        unshare --map-root-user chroot  "$conteiner_rootfs" bash -c "dpkg -L ${list_add_deps[*]} $dependencies || true"
+    ))
 }
 
-
-# ### EXTRACT CONTEINER ESSENTIALS DEPS ### ###########################################################################
-
-
-test "$mode" = "default" || {
-    test $use_lib_browser_launcher -eq 0 || xapp="xapp"
-
-    essentials_deps="glibc glib2 gzip shared-mime-info hicolor-icon-theme $xapp"
-
-    for dep in $essentials_deps
-    {
-        mapfile -t edeptmp < <("$junest" -- bash -c "pactree -d 1 -u $dep")
-        find_edeps+=("${edeptmp[@]}")
-    }
-
-    mapfile -d ' ' -t list_edeps <<< "${find_edeps[@]/[>|=]*/}"
-
-    list_efiles=$( awk '{print $2}' <( grep -Ev \
-    "/var|__pycache__|/$|$remove_etc_bloatwares|/usr/(include|$remove_bins_bloatwares|$remove_libs_bloatwares|$remove_share_bloatwares)" <(
-        "$junest" -- bash -c "pacman -Ql ${list_edeps[*]}"
-    )))
-}
-
-
-# ### EXTRACT DEPENDENCES LDD ### #####################################################################################
-
-
-test $use_ldd_search -eq 0 || {
-    ldd_search_libs=$("$junest" -- bash -c "sort -u <(grep -Eo '/usr/lib/.*[.]so' <(ldd -v \$(which $binary_name)))")
-    search_files=$( printf "%s\n" "$conteiner_rootfs"/usr/lib/* )
-
-    for f in $ldd_search_libs
-    {
-        finder="$( grep "$f" <<< "$search_files" || true )"
-        ldd_libs+="${finder//"$conteiner_rootfs"/}\n"
-    }
-}
-
-list_binary_files=$( awk '{print $2}' <(
-    grep -Ev '__pycache__|/$|/usr/(share/(man|doc|info|pkgconfig)|include)' <(
-        "$junest" -- bash -c "pacman -Ql $package_name"
-)))
-
-all_files="$(echo -e "$list_files\n$list_add_files\n$list_efiles\n$list_binary_files\n$ldd_libs")"
+all_files="$(echo -e "$list_files\n$list_add_files\n$list_binary_files")"
 
 
 # ### EXTRACT DEPS GDK-PIXBUF-2 ### ###################################################################################
 
 
 grep "libgdk_pixbuf-2.0.so" <<< "$all_files" && {
-    libgdk_loaders=$( printf "%s\n" "$conteiner_rootfs"*/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders/* )
-    search_files=$( printf "%s\n" "$conteiner_rootfs"/usr/lib/* )
+    libgdk_loaders=$( printf "%s\n" "$conteiner_rootfs"/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders/* )
+    search_files=$( printf "%s\n" "$conteiner_rootfs"/usr/lib/x86_64-linux-gnu/* )
 
     for f in ${libgdk_loaders//"$conteiner_rootfs"/}
     {
-        gdk_search_libs+="$("$junest" -- bash -c "sort -u <(grep -Eo '/usr/lib/.*[.]so' <(ldd -v \$(which $f)))")"
+        gdk_search_libs+="$(unshare --map-root-user chroot "$conteiner_rootfs" bash -c "ldd -v $f | grep -Eo '/usr/lib/.*[.]so' | sort -u")"
 
         for g in $gdk_search_libs
         {
@@ -456,10 +382,10 @@ grep "libgdk_pixbuf-2.0.so" <<< "$all_files" && {
     all_files+="$( echo -e "\n$gdk_libs${libgdk_loaders//"$conteiner_rootfs"/}" )"
 }
 
-OLDIFS="$IFS"
+OLDIFS="$IFS"  # fix file name with space
 IFS=$'\n'
 
-all_files="$( sort -u <<< "$all_files" )"
+all_files="$( sed 's|/[.]||' <(sort -u <<< "$all_files" ))"  # fix all copy
 
 
 # ### COPY DEPENDENCES ### ############################################################################################
@@ -469,6 +395,12 @@ test $recreate_appdir -eq 0 || {
     rm -vrf "$appdir"
     mkdir -pv "$appdir"
 }
+
+(
+    mkdir -pv "$appdir/usr/lib"  # fix duplicate libs
+    cd "$appdir"
+    ln -snfv usr/lib lib
+)
 
 for file in $all_files
 {
@@ -491,31 +423,23 @@ for file in $all_files
 IFS="$OLDIFS"
 
 test "$mode" = "default" || {
-    mkdir -pv "$appdir/etc"
-
-    cp -nv "$conteiner_rootfs/usr/lib/ld-linux-x86-64.so.2" "$appdir/usr/lib/"
-    cp -nv "$conteiner_rootfs"/usr/lib/libc.so* "$appdir/usr/lib/"
-    cp -nv "$conteiner_rootfs"/usr/lib/libcap.so* "$appdir/usr/lib/"
-    cp -nv "$conteiner_rootfs"/usr/lib/libgcc_s.so* "$appdir/usr/lib/"
-    cp -nv "$conteiner_rootfs"/usr/lib/libncursesw.so* "$appdir/usr/lib/"
-    cp -nv "$conteiner_rootfs"/usr/lib/libreadline.so* "$appdir/usr/lib/"
-    cp -nv "$conteiner_rootfs"/usr/lib/libacl.so* "$appdir/usr/lib/"
-    cp -nv "$tool_dirs"/libselinux.so* "$appdir/usr/lib/"  # Debian bwrap
+    cp -nv "$conteiner_rootfs/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2" "$appdir/usr/lib/x86_64-linux-gnu/"
+    cp -nv "$conteiner_rootfs"/usr/lib/x86_64-linux-gnu/libc.so* "$appdir/usr/lib/x86_64-linux-gnu/"
+    cp -nv "$conteiner_rootfs"/usr/lib/x86_64-linux-gnu/libcap.so* "$appdir/usr/lib/x86_64-linux-gnu/"
+    cp -nv "$conteiner_rootfs"/usr/lib/x86_64-linux-gnu/libgcc_s.so* "$appdir/usr/lib/x86_64-linux-gnu/"
+    cp -nv "$conteiner_rootfs"/usr/lib/x86_64-linux-gnu/libncursesw.so* "$appdir/usr/lib/x86_64-linux-gnu/"
+    cp -nv "$conteiner_rootfs"/usr/lib/x86_64-linux-gnu/libreadline.so* "$appdir/usr/lib/x86_64-linux-gnu/"
+    cp -nv "$conteiner_rootfs"/usr/lib/x86_64-linux-gnu/libacl.so* "$appdir/usr/lib/x86_64-linux-gnu/"
+    cp -nv "$conteiner_rootfs"/usr/lib/x86_64-linux-gnu/libselinux.so* "$appdir/usr/lib/x86_64-linux-gnu/"  # Debian bwrap
 
     cp -nv "$conteiner_rootfs"/usr/bin/{bash,bwrap,env,sh,tr,tty,sed,rm,proot*} "$appdir/usr/bin"
-    cp -nav "$conteiner_rootfs/etc/junest" "$appdir/etc"
-    cp -nav "$conteiner_rootfs"/usr/share/{X11,wayland} "$appdir/usr/share/"
+    cp -nav "$conteiner_rootfs"/usr/share/{X11,wayland} "$appdir/usr/share/" || true
 
-    test -d "$appdir/junest" -o $use_apprun_type -gt 0 || {
-        test -d "$tool_dirs/junest" || git clone https://github.com/fsquillace/junest.git "$tool_dirs/junest"
-        mkdir -pv "$appdir/junest"
-        cp -nav "$tool_dirs"/junest/{bin,lib} "$appdir/junest"
-    }
+    ln -snfv x86_64-linux-gnu/ld-linux-x86-64.so.2 "$appdir/usr/lib/ld-linux-x86-64.so.2"
 
     (
         cd "$appdir"
         ln -snfv usr/bin bin
-        ln -snfv usr/lib lib64
     )
 }
 
@@ -527,14 +451,11 @@ lib_browser_launcher="gio-launch-desktop libasound.so libatk-bridge libatspi lib
     libgtk-3.so.0 libjson-glib libnssutil libpthread.so librt.so libtinysparql libwayland-cursor libX11-xcb.so libxapp-gtk3-module.so \
     libXcursor libXdamage libXi.so libxkbfile.so libXrandr p11 pk"
 
-lib_audio_keywords="alsa jack pipewire pulse"
-
 test $use_lib_browser_launcher -eq 0 || lib_saved="$lib_saved $lib_browser_launcher"
-test $use_lib_audio_keywords -eq 0 || lib_saved="$lib_saved $lib_audio_keywords"
 
 declare -A save_dirs=(
     [bin]="$bin_saved"
-    [lib]="$lib_saved"
+    [lib/x86_64-linux-gnu]="$lib_saved"
     [share]="$share_saved"
 )
 
@@ -583,7 +504,7 @@ chmod +x "$appdir/AppRun"
 sed -i "s|DESKTOP=.*|DESKTOP=$desktop|" "$appdir/AppRun"
 sed -i "s|ICON=.*|ICON=$icon|" "$appdir/AppRun"
 
-which_bin=$("$junest" -- bash -c "which $binary_name")
+which_bin=$(unshare --map-root-user chroot "$conteiner_rootfs" bash -c "which $binary_name")
 
 test -z "$parms" || sed -i "s|PARM=.*|PARM=\"$parms\"|" "$appdir/AppRun"
 
@@ -623,18 +544,18 @@ test "$mode" = "conteiner" && {
 }
 
 
-# ### EXTRA CONFIGS ### ###############################################################################################
+# ### EXTRA CONFIGS ### ############################################################################################### # TODO
 
 
 test "$mode" = "default" && {
-    test -d "$appdir/usr/lib/gdk-pixbuf-2.0" -a ! -d "$apprun/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache" && {
-        cp -v "$conteiner_rootfs"/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache "$appdir/usr/lib/gdk-pixbuf-2.0/2.10.0"
-        sed -i "s|/usr|usr|g" "$appdir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
+    test -d "$appdir/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0" -a ! -d "$apprun/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders.cache" && {
+        cp -v "$conteiner_rootfs"/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders.cache "$appdir/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0"
+        sed -i "s|/usr|usr|g" "$appdir/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders.cache"
     }
     true
 } || {
     test $config_all_locales -eq 0 -o -f "$appdir/usr/lib/locale/locale-archive" || {
-        JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/bin/iconvconfig" || true  # glibc
+        unshare --map-root-user chroot "$conteiner_rootfs" /usr/bin/bash -c "/usr/bin/iconvconfig" || true  # glibc
 
         mkdir -pv "$appdir/usr/share/locale"
         cp -nv "$conteiner_rootfs/usr/share/locale/locale.alias" "$appdir/usr/share/locale"
@@ -650,20 +571,19 @@ test "$mode" = "default" && {
             }
         }
 
-        JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "export PATH=/usr/bin; /usr/bin/locale-gen" || true  # glibc
+        unshare --map-root-user chroot "$conteiner_rootfs" /usr/bin/bash -c "export PATH=/usr/bin; /usr/bin/locale-gen" || true  # glibc
     }
 
-    JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/bin/update-mime-database /usr/share/mime" || true     # shared-mime-info
-    JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/bin/gio-querymodules /usr/lib/gio/modules" || true      # glib2
-    JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/lib/vlc/vlc-cache-gen /usr/lib/vlc/plugins" || true       # vlc
-    JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/bin/gdk-pixbuf-query-loaders --update-cache" || true        # gdk-pixbuf2
-    JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/bin/glib-compile-schemas /usr/share/glib-2.0/schemas" || true # glib2
-    JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/bin/gtk-update-icon-cache -f /usr/share/icons/breeze" || true   # gtk2 gtk3
-    JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/bin/gtk-update-icon-cache -f /usr/share/icons/Adwaita" || true    # gtk2 gtk3
-    JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/bin/gtk-update-icon-cache -f /usr/share/icons/hicolor" || true      # gtk2 gtk3
-    JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/bin/gtk-query-immodules-3.0 > /etc/gtk-3.0/immodules.cache" || true   # gtk3
+    unshare --map-root-user chroot "$conteiner_rootfs" /usr/bin/bash -c "/usr/bin/update-mime-database /usr/share/mime" || true     # shared-mime-info
+    unshare --map-root-user chroot "$conteiner_rootfs" /usr/bin/bash -c "/usr/bin/gio-querymodules /usr/lib/x86_64-linux-gnu/gio/modules" || true      # glib2
+    unshare --map-root-user chroot "$conteiner_rootfs" /usr/bin/bash -c "/usr/lib/vlc/vlc-cache-gen /usr/lib/x86_64-linux-gnu/vlc/plugins" || true       # vlc
+    unshare --map-root-user chroot "$conteiner_rootfs" /usr/bin/bash -c "/usr/bin/gdk-pixbuf-query-loaders --update-cache" || true        # gdk-pixbuf2
+    unshare --map-root-user chroot "$conteiner_rootfs" /usr/bin/bash -c "/usr/bin/glib-compile-schemas /usr/share/glib-2.0/schemas" || true # glib2
+    unshare --map-root-user chroot "$conteiner_rootfs" /usr/bin/bash -c "/usr/bin/gtk-update-icon-cache -f /usr/share/icons/breeze" || true   # gtk2 gtk3
+    unshare --map-root-user chroot "$conteiner_rootfs" /usr/bin/bash -c "/usr/bin/gtk-update-icon-cache -f /usr/share/icons/Adwaita" || true    # gtk2 gtk3
+    unshare --map-root-user chroot "$conteiner_rootfs" /usr/bin/bash -c "/usr/bin/gtk-update-icon-cache -f /usr/share/icons/hicolor" || true      # gtk2 gtk3
+    unshare --map-root-user chroot "$conteiner_rootfs" /usr/bin/bash -c "/usr/bin/gtk-query-immodules-3.0 > /etc/gtk-3.0/immodules.cache" || true   # gtk3
 
-    test $use_apprun_type -eq 0 && _made_JuNest_a_potable_app
     _enable_mountpoints_for_the_inbuilt_bubblewrap
 }
 
@@ -715,9 +635,8 @@ test $create_appimage -eq 0 || {
 
     type="$(
         test "$mode" = "conteiner" && {
-            test $use_apprun_type -eq 2 && printf "_proot"
-            test $use_apprun_type -eq 1 && printf "_bwrap_proot"
-            test $use_apprun_type -eq 0 && printf "_junest"
+            test $use_apprun_type -eq 1 && printf "_proot"
+            test $use_apprun_type -eq 0 && printf "_bwrap_proot"
             true
         } || printf "_inc_glibc"
     )"
@@ -725,13 +644,12 @@ test $create_appimage -eq 0 || {
     mapfile -t n < <(grep -E "^Name=" "$appdir"/*.desktop)
     name="${n[0]/Name=/}"
 
-    : "$("$junest" -- bash -c "pacman -Q $package_name")"
-    version="${_/$package_name /}"
+    version="$(unshare --map-root-user chroot "$conteiner_rootfs" bash -c "dpkg-query -W -f='\${Version}' $package_name")"
 
     ARCH=x86_64 "$tool_dirs/appimagetool" \
         --runtime-file "$runtime" \
         --comp zstd --mksquashfs-opt -Xcompression-level --mksquashfs-opt 20 \
-        "$appdir" "${appimage_dest_dir:-$CWD}/${name// /_}-$version-ArchAppImage${type}-$(date +"%d_%b_%Y")-x86_64.AppImage"
+        "$appdir" "${appimage_dest_dir:-$CWD}/${name// /_}-$version-DebAppImage${type}-$(date +"%d_%b_%Y")-x86_64.AppImage"
 }
 
 printf "Finished!\n"

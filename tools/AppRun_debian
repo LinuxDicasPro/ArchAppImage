@@ -1,0 +1,195 @@
+#!/bin/sh
+#
+# Default AppRun for Debian AppImage {{{ 100% POSIX }}}
+#
+# By Mauricio Ferrari (m10ferrari1200@gmail.com)
+#
+###################################################################################################
+
+env_before="$(export -p | sort)"
+APPDIR="$(cd -- "${0%/*}" && pwd -P)"
+
+PROGRAM=
+PARM=
+AUTO_INTEGRATION=${AUTO_INTEGRATION:-0}
+AUTOSTART=${AUTOSTART:-0}
+AUTOSTART_PARM=
+DESKTOP=
+ICON=
+
+
+if test $AUTO_INTEGRATION -eq 1 && command -v grep >/dev/null && command -v sed >/dev/null
+then
+    local_desktop=~/.local/share/applications
+    local_icon=~/.local/share/pixmaps
+    local_autostart=~/.config/autostart
+
+    mkdir -p "$local_desktop" "$local_icon" "$local_autostart"
+
+    cp -nv "$APPDIR/$DESKTOP" "$local_desktop"
+    cp -nv "$APPDIR/$ICON" "$local_icon"
+
+    if ! grep -q "$APPIMAGE" "$local_desktop/$DESKTOP"
+    then
+        sed -i -e "s|Exec=[^ ]*|Exec=${APPIMAGE}|" -e "s|Icon=.*|Icon=${ICON%.*}|" "$local_desktop/$DESKTOP"
+
+        if test $AUTOSTART -eq 1
+        then
+            cp -nv "$APPDIR/$DESKTOP" "$local_autostart"
+
+            autoparm=${AUTOSTART_PARM:+" $AUTOSTART_PARM"}
+            sed -i -e "s|Exec=[^ ]*|Exec=${APPIMAGE}${autoparm}|" -e "s|Icon=.*|Icon=${ICON%.*}|" "$local_desktop/$DESKTOP"
+        fi
+
+        command -v update-desktop-database >/dev/null && update-desktop-database -q >/dev/null 2>&1
+
+        if test -e "usr/share/icons/hicolor/icon-theme.cache" && command -v gtk-update-icon-cache >/dev/null
+        then
+            gtk-update-icon-cache ~/.local/share/pixmaps/ >/dev/null 2>&1
+        fi
+    fi
+fi
+
+export UNION_PRELOAD="$APPDIR"
+export XDG_DATA_DIRS="$APPDIR/usr/share:/usr/share"
+export XDG_CONFIG_DIRS="$APPDIR/etc/xdg:/etc/xdg"
+
+for py in "$APPDIR"/usr/bin/python*; do
+    test -e "$py" && export PYTHONHOME="$APPDIR/usr" && break
+done
+
+test -z "$PYTHONHOME" && use_system_python=1
+
+if test "$use_system_python" -eq 1; then
+    for dir in /usr/lib/python3.* /usr/lib/python3.*/site-packages/*/ /usr/lib/python3.*/*/; do
+        test -d "$dir" && SYSTEMPYTHONPATH="${SYSTEMPYTHONPATH:+$SYSTEMPYTHONPATH:}${dir%/}"
+    done
+fi
+
+for dir in "$APPDIR"/usr/lib/python3.*/ "$APPDIR"/usr/lib/python3.*/site-packages/*/ "$APPDIR"/usr/lib/python3.*/*/; do
+    test -d "$dir" && PYTHONPATH="${PYTHONPATH:+$PYTHONPATH:}${dir%/}"
+done
+
+test -n "$PYTHONPATH" && export PYTHONPATH="$PYTHONPATH${SYSTEMPYTHONPATH:+:$SYSTEMPYTHONPATH}" && export PYTHONDONTWRITEBYTECODE=1
+
+for dir in \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/perl/*/ \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/perl/*/*/ \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/perl/*/*/*/ \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/perl/*/*/*/*/ \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/perl/*/*/*/*/*/ \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/perl-base/*/ \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/perl-base/*/*/ \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/perl-base/*/*/*/ \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/perl-base/*/*/*/*/ \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/perl-base/*/*/*/*/*/ \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/perl5/*/ \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/perl5/*/*/ \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/perl5/*/*/*/ \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/perl5/*/*/*/*/ \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/perl5/*/*/*/*/*/; do
+    test -d "$dir" && PERL5LIB="${PERL5LIB:+$PERL5LIB:}${dir%/}"
+done
+
+test -n "$PERL5LIB" && export PERL5LIB="$PERL5LIB"
+
+for dir in "$APPDIR"/usr/lib/x86_64-linux-gnu/gtk-4*/ "$APPDIR"/usr/lib/x86_64-linux-gnu/gtk-3*/ "$APPDIR"/usr/lib/x86_64-linux-gnu/gtk-2*/; do
+    test -d "$dir" && GTK_PATH="${GTK_PATH:+$GTK_PATH:}${dir%/}"
+done
+
+test -n "$GTK_PATH" && \
+    export GTK_PATH="$GTK_PATH" && \
+    export GTK_EXE_PREFIX="$APPDIR/usr" && \
+    export GTK_DATA_PREFIX="$APPDIR/usr"
+
+for file in "$APPDIR"/usr/lib/x86_64-linux-gnu/gtk-4.0/*/loaders.cache; do
+    test -f "$file" && export GDK_PIXBUF_MODULE_FILE="$file" && break
+    test -d "$APPDIR/usr/lib/gdk-pixbuf-2.0" && \
+        export GDK_PIXBUF_MODULEDIR="$APPDIR/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders" && \
+        export GDK_PIXBUF_MODULE_FILE="$GDK_PIXBUF_MODULEDIR.cache"
+    break
+done
+
+for dir in "$APPDIR"/usr/lib/x86_64-linux-gnu/gstreamer-*/; do
+    if test -d "$dir"; then
+        export GST_PLUGIN_PATH="${dir%/}"
+        export GST_PLUGIN_SYSTEM_PATH="$GST_PLUGIN_PATH"
+        export GST_PLUGIN_SCANNER="$APPDIR"/usr/lib/x86_64-linux-gnu/gstreamer*/*/gst-plugin-scanner
+        break
+    fi
+done
+
+for file in /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt; do
+    test -e "$file" && export REQUESTS_CA_BUNDLE="$file" && break
+done
+
+for path in \
+    "$APPDIR"/usr/share/X11/xkb/ \
+    "$APPDIR"/usr/share/glib-2.0/schemas/ \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/gtk-*/*/immodules.cache \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/babl-*/ \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/gegl-*/ \
+    "$APPDIR"/usr/share/tcltk/tcl*/ \
+    "$APPDIR"/usr/share/tcltk/tk*/ \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/pipewire-*/ \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/spa-*/ \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/gconv/ \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/gio/modules/ \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/girepository-1.0/ \
+    "$APPDIR"/usr/lib/x86_64-linux-gnu/libdecor/plugins-1/; do
+    test -e "$path" || continue
+    case "$path" in
+        */X11/xkb)
+            export XKB_CONFIG_ROOT="${path%/}" ;;
+        */glib-2.0/schemas)
+            export GSETTINGS_SCHEMA_DIR="${path%/}" ;;
+        */libdecor/plugins-1)
+            export LIBDECOR_PLUGIN_DIR="${path%/}" ;;
+        */gio/modules)
+            export GIO_EXTRA_MODULES="${path%/}" ;;
+        */girepository-1.0)
+            export GI_TYPELIB_PATH="${path%/}" ;;
+        */gconv)
+            export GCONV_PATH="${path%/}" ;;
+        */gtk-*/*/immodules.cache)
+            export GTK_IM_MODULE_FILE="${path%/}" ;;
+        */babl-*)
+            export BABL_PATH="${path%/}" ;;
+        */gegl-*)
+            export GEGL_PATH="${path%/}" ;;
+        */tcl*)
+            export TCL_LIBRARY="${path%/}" ;;
+        */tk*)
+            export TK_LIBRARY="${path%/}" ;;
+        */pipewire-*)
+            export PIPEWIRE_MODULE_DIR="${path%/}" ;;
+        */spa-*)
+            export SPA_PLUGIN_DIR="${path%/}" ;;
+    esac
+done
+
+for dir in "$APPDIR"/usr/lib/jvm/java*/; do
+    test -d "$dir" && export JAVA_HOME="${dir%/}" && break
+done
+
+for dir in "$APPDIR"/usr/lib/x86_64-linux-gnu/qt*/ "$APPDIR"/usr/lib/x86_64-linux-gnu/qt*/plugins/*/ "$APPDIR"/usr/lib/x86_64-linux-gnu/qt*/*/; do
+    test -d "$dir" && QT_PLUGIN_PATH="${QT_PLUGIN_PATH:+$QT_PLUGIN_PATH:}${dir%/}"
+done
+
+test -n "$QT_PLUGIN_PATH" && export QT_PLUGIN_PATH="$QT_PLUGIN_PATH"
+
+for dir in "$APPDIR"/usr/lib/ruby/ "$APPDIR"/usr/lib/ruby/*/; do
+    test -d "$dir" && RUBYLIB="${RUBYLIB:+$RUBYLIB:}${dir%/}"
+done
+
+test -n "$RUBYLIB" && export RUBYLIB="$RUBYLIB" && export GEM_PATH="$APPDIR/usr/lib/ruby/gems"
+
+for dir in "$APPDIR"/usr/lib/x86_64-linux-gnu/ "$APPDIR"/usr/lib/x86_64-linux-gnu/*/; do
+    test -d "$dir" && LIBRARY_PATH="${LIBRARY_PATH:+$LIBRARY_PATH:}${dir%/}"
+done
+
+test -n "$LIBRARY_PATH" && export LIBRARY_PATH="$LIBRARY_PATH"
+export PATH="$APPDIR/usr/bin:$APPDIR/usr/libexec${JAVA_HOME:+:$JAVA_HOME/bin}:$PATH"
+
+command -v grep >/dev/null && export -p | sort | grep -Fvx "$env_before"
+exec "$APPDIR/usr/lib/ld-linux-x86-64.so.2" --inhibit-cache --library-path "${LIBRARY_PATH}" "$PROGRAM" $PARM "$@"

@@ -51,7 +51,7 @@ then
     fi
 fi
 
-export LIBRARY_PATH="$APPDIR/lib:$APPDIR/lib64:$APPDIR/usr/lib:$APPDIR/usr/lib64"
+export LIBRARY_PATH="$APPDIR/lib:$APPDIR/lib64:$APPDIR/usr/lib:$APPDIR/usr/lib64:$APPDIR/lib/x86_64-linux-gnu:$APPDIR/usr/lib/x86_64-linux-gnu"
 
 BWRAP_OPTIONS="--unshare-user --bind $APPDIR / \
     --share-net \
@@ -110,11 +110,11 @@ PROOT_OPTIONS="-R $APPDIR \
 if command -v unshare >/dev/null 2>&1 && ! unshare --user -p /bin/true >/dev/null 2>&1
 then
     printf "using proot ...\n"
-    export LD_LIBRARY_PATH="/usr/lib:/lib:/usr/lib64:/lib64${NV_LIBRARY:+:$NV_LIBRARY}"
+    export LD_LIBRARY_PATH="/usr/lib:/lib:/usr/lib64:/lib64:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu${NV_LIBRARY:+:$NV_LIBRARY}"
     exec "$APPDIR/usr/lib/ld-linux-x86-64.so.2" --inhibit-cache --library-path "${LIBRARY_PATH}" "$APPDIR/usr/bin/proot-x86_64" $PROOT_OPTIONS "$PROGRAM" $PARM "$@"  # parms no "parms"
 else
     printf "using bwrap ...\n"
     command -v xhost && xhost -SI:localuser:"$USER"  # debian
-    export LD_LIBRARY_PATH="/usr/lib:/lib:/usr/lib64:/lib64${NV_LIBRARY:+:$NV_LIBRARY}"
+    export LD_LIBRARY_PATH="/usr/lib:/lib:/usr/lib64:/lib64:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu${NV_LIBRARY:+:$NV_LIBRARY}"
     exec "$APPDIR/usr/lib/ld-linux-x86-64.so.2" --inhibit-cache --library-path "${LIBRARY_PATH}" "$APPDIR/usr/bin/bwrap" $BWRAP_OPTIONS "$PROGRAM" $PARM "$@"  # parms no "parms"
 fi

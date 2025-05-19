@@ -39,7 +39,7 @@ level_search_add_deps=1  # detect add dependences 1 - 2 - 3 ...
 
 mode="default"  # default - conteiner
 
-use_apprun_type=0  # mode conteiner: 0 (junest) - 1 (bwrap) - 2 (proot) - 3 (bwrap_proot_fallback)
+use_apprun_type=0  # mode conteiner: 0 (junest) - 1 (bwrap_proot) - 2 (proot)
 enable_nvidia=0    # mode conteiner: 0 (false) or 1 (true)
 
 enable_auto_integration=0            # 0 (false) or 1 (true)
@@ -57,12 +57,6 @@ use_custom_apprun=  # optional
 
 use_desktop_file=  # optional - "$CWD/usr/share/applications/desktopfile.desktop"
 use_icon_file=     # optional - "$CWD/usr/share/pixmaps/icon.png"
-
-use_local_junest_bootstrap=0  # 0 (false) or 1 (true) - optional
-
-junest_link=  # optional
-# junest_link="https://pub-a2af2344e8554f6c807bc3db355ae622.r2.dev/junest/junest-x86_64.tar.gz"
-# junest_link="https://github.com/ivan-hc/junest/releases/download/continuous/junest-x86_64.tar.gz"
 
 add_basic_stuff=  # optional
 add_compilers=    # optional - for aur
@@ -84,6 +78,7 @@ use_ldd_search=0     # 0 (false) or 1 (true)
 recreate_appdir=0    # 0 (false) or 1 (true)
 create_appimage=0    # 0 (false) or 1 (true)
 
+use_uruntime=0      # 0 (type2runtime) - 1 (uruntime) - 2 (uruntime-dwarfs)
 appimage_dest_dir=  # optional
 
 ###############################################################################
@@ -98,7 +93,7 @@ conteiner_rootfs="$CWD/arch${custom_conteiner_name:+"_$custom_conteiner_name"}_b
 tool_dirs="$CWD/tools"
 appdir="$CWD/$package_name.AppDir"
 
-mkdir -pv "$tool_dirs" "$appdir" "$CWD/tests"
+mkdir -pv "$tool_dirs" "$appdir"
 
 test $enable_build_aur -eq 1 && use_aur="yay"
 
@@ -120,22 +115,11 @@ junest="$(
     )
 )"
 
-junest_file="$(
-    test $use_local_junest_bootstrap -eq 1 || exit 0
-    printf '%s' "$tool_dirs/junest-x86_64.tar.gz"
-
-    test -z "$junest_link" -o -f "$tool_dirs/junest-x86_64.tar.gz" && exit 0
-    (
-        wget -q --show-progress -O "$tool_dirs/junest-x86_64.tar.gz" "$junest_link"
-    )
-)"
-
 apprun="${use_custom_apprun:-"$(
     test "$mode" = "conteiner" && {
         select_apprun="AppRun_junest"
-        test $use_apprun_type -eq 1 && select_apprun="AppRun_bwrap"
+        test $use_apprun_type -eq 1 && select_apprun="AppRun_bwrap_proot"
         test $use_apprun_type -eq 2 && select_apprun="AppRun_proot"
-        test $use_apprun_type -eq 3 && select_apprun="AppRun_bwrap_proot"
         true
     } || select_apprun="AppRun_default"
 
@@ -147,24 +131,20 @@ apprun="${use_custom_apprun:-"$(
     )
 )"}"
 
-libselinux_link="https://repo.taiho.moe/selinux/$(
-    mapfile -t l < <(
-        grep "^libselinux.*zst$" <(
-            awk -F '"' '{print $2}' <(
-                curl -Ls https://repo.taiho.moe/selinux/ )))
-    printf '%s' "${l[-1]}"
-)"
 
 test -f "$tool_dirs/libselinux.so.1" || {
+
+    libselinux_link="https://repo.taiho.moe/selinux/$(
+        mapfile -t l < <(
+            grep "^libselinux.*zst$" <(
+                awk -F '"' '{print $2}' <(
+                    curl -Ls https://repo.taiho.moe/selinux/ )))
+        printf '%s' "${l[-1]}"
+    )"
+
     wget -c -q --show-progress -O "$tool_dirs/${libselinux_link##*/}" "$libselinux_link"
     tar -I zstd --strip-components=2 -C "$tool_dirs" -xvf "$tool_dirs/${libselinux_link##*/}" usr/lib/libselinux.so.1
 }
-
-printf "%-18s %s\n" \
-  "use apprun:"       "$apprun" \
-  "junest command:"   "$junest" \
-  "junest bootstrap:" "${junest_file:-disabled}" \
-  "package manager:"  "$pacman"
 
 
 # ### DOWNLOAD APPIMAGE TOOLS ### #####################################################################################
@@ -176,8 +156,34 @@ test -f "$tool_dirs/appimagetool" || {
     chmod -v +x "$tool_dirs/appimagetool"
 }
 
-test -f "$tool_dirs/runtime" || wget -q --show-progress -O "$tool_dirs/runtime" \
-    https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64
+runtime="$(
+    case $use_uruntime in
+        2)
+            str="uruntime-dwarfs"
+            url="https://github.com/VHSgunzo/uruntime/releases/download/v0.3.9/uruntime-appimage-dwarfs-x86_64"
+            ;;
+        1)
+            str="uruntime"
+            url="https://github.com/VHSgunzo/uruntime/releases/download/v0.3.9/uruntime-appimage-x86_64"
+            ;;
+        *)
+            str="runtime"
+            url="https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64"
+            ;;
+    esac
+
+    echo "$tool_dirs/$str"
+    test -f "$tool_dirs/$str" && exit 0
+    (
+        wget -q --show-progress -O "$tool_dirs/$str" "$url"
+    )
+)"
+
+printf "%-18s %s\n" \
+  "use apprun:"        "$apprun" \
+  "junest command:"    "$junest" \
+  "runtime:"           "$runtime" \
+  "package manager:"   "$pacman"
 
 
 # ### FUNCTIONS ### ###################################################################################################
@@ -191,7 +197,7 @@ function _extra_config
 
 function _remove_others_bloatwares
 {
-    etc_remove="makepkg.conf pacman"
+    etc_remove="gcc makepkg.conf pacman"
     bin_remove="gcc"
     lib_remove="gcc"
     share_remove="gcc"
@@ -246,14 +252,15 @@ function _made_JuNest_a_potable_app
 
 function _enable_mountpoints_for_the_inbuilt_bubblewrap
 {
-    mkdir -pv "$appdir"/{etc/{vulkan/icd.d,fonts},lib/firmware,home,mnt,tmp,media,opt,run,var,usr/{lib/locale,share/{font-config,fonts,themes}}}
+    mkdir -pv "$appdir"/{etc/{vulkan/icd.d,fonts},lib/firmware,dev,home,mnt,tmp,media,opt,proc,run,var,sys,usr/{lib/locale,share/{font-config,fonts,themes}}}
 
     test -f "$appdir/etc/localtime" && rm -vf "$appdir/etc/localtime"
     : > "$appdir/etc/localtime"
 
-    test -f "$appdir/etc/nsswitch.conf" || : > "$appdir/etc/nsswitch.conf"
-    test -f "$appdir/etc/asound.conf" || : > "$appdir/etc/asound.conf"
-    test -f "$appdir/etc/machine-id" || : > "$appdir/etc/machine-id"
+    for f in resolv.conf hosts nsswitch.conf passwd group asound.conf machine-id
+    {
+        test -f "$appdir/etc/$f" || : > "$appdir/etc/$f"
+    }
 }
 
 
@@ -284,7 +291,7 @@ StartupNotify=true
 
 
 test -d "$conteiner_rootfs" || {
-    "$junest" setup ${junest_file:+-i "$junest_file"}
+    "$junest" setup
 
     test $enable_multilib -eq 1 && sed -i '/^#\[multilib\]/{s/^#//;n;s/^#//}' "$conteiner_rootfs/etc/pacman.conf"
 
@@ -348,7 +355,7 @@ test $noupdate = 1 || _junest_update
 # ### EXTRACT AUTO DEPENDENCES ### ####################################################################################
 
 
-remove_share_bloatwares="share/(cmake|man|licenses|doc|locale|info|gtk-doc|zoneinfo|pkgconfig${remove_others_share_bloatwares:+"|$remove_others_share_bloatwares"})"
+remove_share_bloatwares="share/(fonts|cmake|man|licenses|doc|locale|info|gtk-doc|zoneinfo|pkgconfig${remove_others_share_bloatwares:+"|$remove_others_share_bloatwares"})"
 remove_libs_bloatwares="lib/(cmake|pkgconfig|systemd|sysctl.d|tmpfiles.d|sysusers.d|lib.*[.]a${remove_others_libs_bloatwares:+"|$remove_others_libs_bloatwares"})"
 remove_bins_bloatwares="bin/(systemd${remove_others_bins_bloatwares:+"|$remove_others_bins_bloatwares"})"
 remove_etc_bloatwares="/etc/(systemd${remove_others_etc_bloatwares:+"|$remove_others_etc_bloatwares"})"
@@ -449,6 +456,9 @@ grep "libgdk_pixbuf-2.0.so" <<< "$all_files" && {
     all_files+="$( echo -e "\n$gdk_libs${libgdk_loaders//"$conteiner_rootfs"/}" )"
 }
 
+OLDIFS="$IFS"
+IFS=$'\n'
+
 all_files="$( sort -u <<< "$all_files" )"
 
 
@@ -464,6 +474,9 @@ for file in $all_files
 {
     orig_file="$conteiner_rootfs$file"
 
+    test -z $file && continue
+    test -d "$file" && continue  # fix all copy
+
     test -L "$orig_file" -a -d "$orig_file" && {
         printf "symbolic link dir %s \n" "$orig_file"
         continue
@@ -474,6 +487,8 @@ for file in $all_files
     mkdir -pv "$dest_dir"
     cp -nav "$orig_file" "$dest_dir"
 }
+
+IFS="$OLDIFS"
 
 test "$mode" = "default" || {
     mkdir -pv "$appdir/etc"
@@ -649,14 +664,8 @@ test "$mode" = "default" && {
     JUNEST_HOME="$appdir" "$junest" -- /usr/bin/bash -c "/usr/bin/gtk-query-immodules-3.0 > /etc/gtk-3.0/immodules.cache" || true   # gtk3
 
     test $use_apprun_type -eq 0 && _made_JuNest_a_potable_app
-
     _enable_mountpoints_for_the_inbuilt_bubblewrap
 }
-
-printf "#!/bin/bash
-JUNEST_HOME=\"$conteiner_rootfs\" $junest -- $binary_name \"\$@\"" > "$CWD/tests/$binary_name-Conteiner-Test"
-
-chmod +x "$CWD/tests/$binary_name-Conteiner-Test"
 
 _remove_others_bloatwares
 _extra_config
@@ -706,9 +715,8 @@ test $create_appimage -eq 0 || {
 
     type="$(
         test "$mode" = "conteiner" && {
-            test $use_apprun_type -eq 3 && printf "_bwrap_proot"
             test $use_apprun_type -eq 2 && printf "_proot"
-            test $use_apprun_type -eq 1 && printf "_bwrap"
+            test $use_apprun_type -eq 1 && printf "_bwrap_proot"
             test $use_apprun_type -eq 0 && printf "_junest"
             true
         } || printf "_inc_glibc"
@@ -720,14 +728,10 @@ test $create_appimage -eq 0 || {
     : "$("$junest" -- bash -c "pacman -Q $package_name")"
     version="${_/$package_name /}"
 
-    UPINFO="gh-releases-zsync|${name// /_}_AppImage|latest|*x86_64.AppImage.zsync"
-
     ARCH=x86_64 "$tool_dirs/appimagetool" \
-        --runtime-file "$tool_dirs/runtime" \
+        --runtime-file "$runtime" \
         --comp zstd --mksquashfs-opt -Xcompression-level --mksquashfs-opt 20 \
-        -u "$UPINFO" "$appdir" "${appimage_dest_dir:-$CWD}/${name// /_}-$version-ArchAppImage${type}-$(date +"%d_%b_%Y")-x86_64.AppImage"
-
-        mv -v "${name// /_}-$version-ArchAppImage${type}-$(date +"%d_%b_%Y")-x86_64.AppImage.zsync" "${appimage_dest_dir:-$CWD}" || true
+        "$appdir" "${appimage_dest_dir:-$CWD}/${name// /_}-$version-ArchAppImage${type}-$(date +"%d_%b_%Y")-x86_64.AppImage"
 }
 
 printf "Finished!\n"

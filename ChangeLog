@@ -1,3 +1,9 @@
+2025-05-18:
+    - update recipes
+    - add scripts APP-DebAppImage and AppRun_debian
+    - update AppRun_bwrap_proot and AppRun_proot
+    - remove AppRun_bwrap
+    - change and fix APP-ArchAppImage
 2025-04-27:
     - add support nvidia for conteiner mode
     - update nvidia tests

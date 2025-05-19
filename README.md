@@ -107,17 +107,18 @@ a necessidade.
 
 - Várias opções de Scripts de Construção:
 
-   - ✅ **`APP-ArchAppImage`** - usa contêiner junest.
+   - ✅ **`APP-ArchAppImage`** - usando contêiner junest.
+   - ✅ **`APP-DebAppImage`** - cria AppImage usando contêiner debootstrap.
    - ✅ **`APP-Tarball2AppImage`** - cria AppImage com pacotes em tarball.
 
 - São vários tipos de **`AppRun`** disponíveis:
 
-   - ✅ **`AppRun_bwrap`** - conteiner bwrap.
-   - ✅ **`AppRun_bwrap_proot`** - conteiner bwrap com proot como fallbak.
-   - ✅ **`AppRun_default`** - modo padrão, sem conteiner.
-   - ✅ **`AppRun_junest`** - conteiner junest.
-   - ✅ **`AppRun_proot`** - conteiner proot.
+   - ✅ **`AppRun_bwrap_proot`** - contêiner bwrap com proot como fallbak.
+   - ✅ **`AppRun_default`** - modo padrão, sem contêiner.
+   - ✅ **`AppRun_junest`** - contêiner junest.
+   - ✅ **`AppRun_proot`** - contêiner proot.
    - ✅ **`AppRun_tarball`** - para AppImage em tarball.
+   - ✅ **`AppRun_debian`** - modo padrão, sem contêiner, para AppImage usando Debian.
 
 - Não há a necessidade de separar os projetos de **`AppImage`** em vários diretórios.
 Pode ser usado o mesmo contêiner para empacotar vários AppImages diferentes,
@@ -228,14 +229,10 @@ incorporados e como solucionar problemas, consulte a documentação na wiki do g
 
 ## 📝 Próximas Implementações
 
-- 📌 **Implementação com debootstrap adaptado ao junest.**
-- 📌 **Ativar suporte ao uso do uruntime.**
-- 📌 **Ativar suporte ao unionfs.**
 - 📌 **Empacotamento usando `sharun`.**
 - 📌 **Reempacotador de AppImage para adição de modificações.**
-- 📌 **Possível empacotamento usando flatpack.**
+- 📌 **Empacotamento usando flatpack.**
 - 📌 **Futuramente, um Software de Desenvolvimento de AppImage em QT.**
-- 📌 **Ferramentas adicionais.**
 
 ## 🤝 Contribuindo
 
