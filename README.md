@@ -14,10 +14,13 @@
 
 O **`ArchAppImage`** facilita o empacotamento de programas no no formato **`AppImage`** 
 usando pacotes do Arch Linux. Ele automatiza a criação de pacotes e melhora a
-compatibilidade com o sistema, além de contar com vários métodos de criação de AppImage e
-inclusão do **`GLibC`**. Também é possível empacotar programas autocontidos em 
-**`TarBall`** para quem optar por AppImages mais leves, porém com uma menor garantia
-de funcionalidade, por não incluir o **`GLibC`**.  
+compatibilidade com o sistema, além de contar com vários métodos de criação de
+AppImage e inclusão do **`GLibC`**.
+
+Além disso, há outras formas disponiveis de fazer AppImage usando pacotes **`Debian`** com
+inclusão do **`GLibC`**, e também empacotar programas autocontidos em  **`TarBall`**
+para quem optar por AppImages mais leves, porém com uma menor garantia de funcionalidade,
+por não incluir o **`GLibC`**.  
  ​   
 
 ![](https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/NVIDIA_logo.svg/330px-NVIDIA_logo.svg.png)
