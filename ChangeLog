@@ -1,3 +1,10 @@
+2025-06-10:
+    - update repipes
+    - fix APP-ArchAppImage
+    - fix APP-DebAppImage
+    - change and fix APP-Tarball2AppImage
+    - fix AppRun_debian
+    - fix AppRun_default
 2025-05-18:
     - update recipes
     - add scripts APP-DebAppImage and AppRun_debian
