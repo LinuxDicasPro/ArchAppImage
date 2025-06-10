@@ -18,6 +18,8 @@
 #
 ###############################################################################
 
+test $UID -eq 0 && echo "Please do not run this script with sudo. It should be executed as a regular user." && exit 1
+
 CWD="$PWD"
 set -e
 
@@ -97,12 +99,13 @@ export SUDO_ASKPASS="$FIFO"
 
 binary_name="${binary_name:-"$package_name"}"
 
-conteiner_rootfs="$CWD/debian${custom_conteiner_name:+"_$custom_conteiner_name"}_bootstrap"
+conteiner_rootfs="$CWD/_debian${custom_conteiner_name:+"_$custom_conteiner_name"}_bootstrap"
 
 tool_dirs="$CWD/tools"
 appdir="$CWD/$package_name.AppDir"
 
 mkdir -pv "$tool_dirs" "$appdir"
+test -z "$appimage_dest_dir" || mkdir -pv "$appimage_dest_dir"
 
 
 # ### DOWNLOAD & CHECK TOOLS ### ######################################################################################

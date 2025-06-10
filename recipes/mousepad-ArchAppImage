@@ -19,6 +19,8 @@
 #
 ###############################################################################
 
+test $UID -eq 0 && echo "Please do not run this script with sudo. It should be executed as a regular user." && exit 1
+
 CWD="$PWD"
 set -e
 
@@ -88,12 +90,13 @@ test -z "$package_name" && exit 1
 
 binary_name="${binary_name:-"$package_name"}"
 
-conteiner_rootfs="$CWD/arch${custom_conteiner_name:+"_$custom_conteiner_name"}_bootstrap"
+conteiner_rootfs="$CWD/_arch${custom_conteiner_name:+"_$custom_conteiner_name"}_bootstrap"
 
 tool_dirs="$CWD/tools"
 appdir="$CWD/$package_name.AppDir"
 
 mkdir -pv "$tool_dirs" "$appdir"
+test -z "$appimage_dest_dir" || mkdir -pv "$appimage_dest_dir"
 
 test $enable_build_aur -eq 1 && use_aur="yay"
 
@@ -686,9 +689,8 @@ test $create_appimage -eq 0 || {
         }
 
         test "$mode" = "default" || {
-            test $use_apprun_type -eq 3 && cp -nv "$appdir"/usr/bin2/{bwrap,proot*} "$appdir/usr/bin"
             test $use_apprun_type -eq 2 && cp -nv "$appdir"/usr/bin2/proot* "$appdir/usr/bin"
-            test $use_apprun_type -eq 1 && cp -nv "$appdir/usr/bin2/bwrap" "$appdir/usr/bin"
+            test $use_apprun_type -eq 1 && cp -nv "$appdir"/usr/bin2/{bwrap,proot*} "$appdir/usr/bin"
             test $use_apprun_type -eq 0 && cp -nv "$appdir/usr/bin2"/{bash,bwrap,proot*,env,sh,tr,tty} "$appdir/usr/bin"
         }
 

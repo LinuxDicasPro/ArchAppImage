@@ -15,8 +15,9 @@
 #
 ###############################################################################
 
-CWD="$PWD"
+test $UID -eq 0 && echo "Please do not run this script with sudo. It should be executed as a regular user." && exit 1
 
+CWD="$PWD"
 set -e
 
 pkgname=atom-ng
@@ -53,12 +54,12 @@ create_appimage=1   # 0 (false) or 1 (true)
 
 test -z "$pkgname" && exit 1
 
-tarballs="$CWD/tarball_packages"
+tarballs="$CWD/_tarball_packages"
 tool_dirs="$CWD/tools"
 appdir="$CWD/$pkgname.AppDir"
-appimage_dest_dir="${appimage_dest_dir:-"$CWD"}"
 
-mkdir -pv "$tool_dirs" "$appdir" "$appimage_dest_dir" "$tarballs"
+mkdir -pv "$tool_dirs" "$appdir" "$tarballs"
+test -z "$appimage_dest_dir" || mkdir -pv "$appimage_dest_dir"
 
 search_link="https://aur.archlinux.org/cgit/aur.git/tree/PKGBUILD?h=${aur_name:-$pkgname}"
 regex="${custom_regex:-"([0-9]+[.])+[0-9]+"}"
@@ -237,14 +238,10 @@ test $create_appimage -eq 0 || {
     mapfile -t n < <(grep -E "^Name=" "$appdir"/*.desktop)
     name="${n[0]/Name=/}"
 
-    UPINFO="gh-releases-zsync|${name// /_}_AppImage|latest|*x86_64.AppImage.zsync"
-
     ARCH=x86_64 "$tool_dirs/appimagetool" \
         --runtime-file "$tool_dirs/runtime" \
         --comp zstd --mksquashfs-opt -Xcompression-level --mksquashfs-opt 20 \
-        -u "$UPINFO" "$appdir" "${appimage_dest_dir:-$CWD}/${name// /_}-$pkgver-Tarball2AppImage-$(date +"%d_%b_%Y")-x86_64.AppImage"
-
-    mv -v "${name// /_}-$pkgver-Tarball2AppImage-$(date +"%d_%b_%Y")-x86_64.AppImage.zsync" "${appimage_dest_dir:-$CWD}" || true
+        "$appdir" "${appimage_dest_dir:-$CWD}/${name// /_}-$pkgver-Tarball2AppImage-$(date +"%d_%b_%Y")-x86_64.AppImage"
 }
 
 printf "Finished!\n"
