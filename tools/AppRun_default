@@ -60,7 +60,7 @@ done
 
 test -z "$PYTHONHOME" && use_system_python=1
 
-if test "$use_system_python" -eq 1; then
+if test "${use_system_python:-0}" -eq 1; then
     for dir in /usr/lib/python3.* /usr/lib/python3.*/site-packages/*/ /usr/lib/python3.*/*/; do
         test -d "$dir" && SYSTEMPYTHONPATH="${SYSTEMPYTHONPATH:+$SYSTEMPYTHONPATH:}${dir%/}"
     done
@@ -179,7 +179,8 @@ for dir in "$APPDIR"/usr/lib/ "$APPDIR"/usr/lib/*/; do
 done
 
 test -n "$LIBRARY_PATH" && export LIBRARY_PATH="$LIBRARY_PATH"
-export PATH="$APPDIR/usr/bin:$APPDIR/usr/libexec${JAVA_HOME:+:$JAVA_HOME/bin}:$PATH"
 
 command -v grep >/dev/null && export -p | sort | grep -Fvx "$env_before"
-exec "$APPDIR/usr/lib/ld-linux-x86-64.so.2" --inhibit-cache --library-path "${LIBRARY_PATH}" "$PROGRAM" $PARM "$@"
+export PATH="$APPDIR/usr/bin:$APPDIR/usr/libexec${JAVA_HOME:+:$JAVA_HOME/bin}:$PATH"
+
+exec "$APPDIR/usr/lib/ld-linux-x86-64.so.2" --inhibit-cache --library-path "${LIBRARY_PATH}" -- "$PROGRAM" $PARM "$@"
