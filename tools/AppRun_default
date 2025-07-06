@@ -183,4 +183,4 @@ test -n "$LIBRARY_PATH" && export LIBRARY_PATH="$LIBRARY_PATH"
 command -v grep >/dev/null && export -p | sort | grep -Fvx "$env_before"
 export PATH="$APPDIR/usr/bin:$APPDIR/usr/libexec${JAVA_HOME:+:$JAVA_HOME/bin}:$PATH"
 
-exec "$APPDIR/usr/lib/ld-linux-x86-64.so.2" --inhibit-cache --library-path "${LIBRARY_PATH}" -- "$PROGRAM" $PARM "$@"
+exec "$APPDIR/usr/lib/ld-linux-x86-64.so.2" --inhibit-cache --library-path "${LIBRARY_PATH}" -- "$PROGRAM" ${PARM:+$PARM} ${@:+"$@"}

@@ -92,7 +92,7 @@ binary_name="${binary_name:-"$package_name"}"
 
 conteiner_rootfs="$CWD/_arch${custom_conteiner_name:+"_$custom_conteiner_name"}_bootstrap"
 
-tool_dirs="$CWD/tools"
+tool_dirs="$CWD/_tools"
 appdir="$CWD/$package_name.AppDir"
 
 mkdir -pv "$tool_dirs" "$appdir"
@@ -488,7 +488,7 @@ for file in $all_files
     dest_dir="$appdir${file%/*}"
 
     mkdir -pv "$dest_dir"
-    cp -nav "$orig_file" "$dest_dir"
+    cp -nav "$orig_file" "$dest_dir" || true
 }
 
 IFS="$OLDIFS"
@@ -507,7 +507,7 @@ test "$mode" = "default" || {
 
     cp -nv "$conteiner_rootfs"/usr/bin/{bash,bwrap,env,sh,tr,tty,sed,rm,proot*} "$appdir/usr/bin"
     cp -nav "$conteiner_rootfs/etc/junest" "$appdir/etc"
-    cp -nav "$conteiner_rootfs"/usr/share/{X11,wayland} "$appdir/usr/share/"
+    cp -nav "$conteiner_rootfs"/usr/share/{X11,wayland} "$appdir/usr/share/" || true
 
     test -d "$appdir/junest" -o $use_apprun_type -gt 0 || {
         test -d "$tool_dirs/junest" || git clone https://github.com/fsquillace/junest.git "$tool_dirs/junest"
@@ -588,7 +588,7 @@ sed -i "s|ICON=.*|ICON=$icon|" "$appdir/AppRun"
 
 which_bin=$("$junest" -- bash -c "which $binary_name")
 
-test -z "$parms" || sed -i "s|PARM=.*|PARM=\"$parms\"|" "$appdir/AppRun"
+test -z "$parms" || sed -i "s|^PARM=.*|PARM=\"$parms\"|" "$appdir/AppRun"
 
 test $enable_auto_integration -eq 0 || {
     sed -i "s|AUTO_INTEGRATION=.*|AUTO_INTEGRATION=1|" "$appdir/AppRun"
@@ -616,7 +616,8 @@ test "$mode" = "conteiner" && {
         sed -i "s|PROGRAM=.*|PROGRAM=\$APPDIR/usr/bin/perl \$APPDIR$which_bin|" "$appdir/AppRun"
     elif grep "Python" <<< "$type_file"
     then
-        sed -i "s|PROGRAM=.*|PROGRAM=\$APPDIR/usr/bin/python3 \$APPDIR$which_bin|" "$appdir/AppRun"
+        sed -i "s|PROGRAM=.*|PROGRAM=\"\$APPDIR/usr/bin/python3\"|" "$appdir/AppRun"
+        sed -i "s|PARM=.*|^PARM=\"\$APPDIR$which_bin\"|" "$appdir/AppRun"
     elif grep -E "(POSIX|Bourne-Again)[ ]shell" <<< "$type_file"
     then
         sed -i "s|PROGRAM=.*|PROGRAM=\$APPDIR/usr/bin/bash \$APPDIR$which_bin|" "$appdir/AppRun"

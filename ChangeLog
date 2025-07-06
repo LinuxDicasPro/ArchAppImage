@@ -1,3 +1,7 @@
+2025-07-06:
+    - fix APP-ArchAppImage & APP-DebAppImage for python
+    - fix AppRun_debian & AppRun_default for python
+    - others fix
 2025-06-10:
     - update repipes
     - fix APP-ArchAppImage

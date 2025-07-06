@@ -55,7 +55,7 @@ create_appimage=0   # 0 (false) or 1 (true)
 test -z "$pkgname" && exit 1
 
 tarballs="$CWD/_tarball_packages"
-tool_dirs="$CWD/tools"
+tool_dirs="$CWD/_tools"
 appdir="$CWD/$pkgname.AppDir"
 
 mkdir -pv "$tool_dirs" "$appdir" "$tarballs"
@@ -211,7 +211,7 @@ icon_file="$(printf '%s' "$appdir"/*.{sv,pn}g)"
 desktop="${desktop_file##*/}"
 icon="${icon_file##*/}"
 
-test -z "$custom_parms" || sed -i "s|PARM=.*|PARM=\"$custom_parms\"|" "$appdir/AppRun"
+test -z "$custom_parms" || sed -i "s|^PARM=.*|PARM=\"$custom_parms\"|" "$appdir/AppRun"
 
 test $enable_graphic_sudo -eq 0 || sed -i "s|ENABLE_SUDO=0|ENABLE_SUDO=1|" "$appdir/AppRun"
 
